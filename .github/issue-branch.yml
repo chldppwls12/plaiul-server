@@ -1,0 +1,15 @@
+branchName: '${issue.number}'
+branches:
+  - label: '🐞 BugFix'
+    prefix: Bug/
+  - label: '📃 Docs'
+    prefix: Docs/
+  - label: '✨ Feature'
+    prefix: Feat/
+  - label: '♻️ Refactor'
+    prefix: Refactor/
+  - label: '⚙ Setting'
+    prefix: Chore/
+  - label: '✅ Test'
+    prefix: Test/
+autoCloseIssue: true
