@@ -10,7 +10,7 @@ const AppDataSource = new DataSource({
   database: process.env.DB_DATABASE,
   logging: process.env.NODE_ENV === 'development',
   synchronize: process.env.NODE_ENV === 'development',
-  entities: ['src/entity/*.ts'],
+  entities: ['src/entities/*.ts'],
   migrations: ['src/migration/*.ts']
 });
 
