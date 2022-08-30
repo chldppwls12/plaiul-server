@@ -25,6 +25,12 @@ export class User extends BaseEntity {
   @Column({ type: 'text' })
   password: string;
 
+  @Column({ type: 'text' })
+  iv: string;
+
+  @Column({ type: 'text' })
+  salt: string;
+
   @Column({ type: 'enum', enum: LoginType, default: LoginType.LOCAL })
   loginType: LoginType;
 
