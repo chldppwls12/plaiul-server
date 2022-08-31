@@ -6,6 +6,13 @@ import validator from '@middlewares/validator';
 const router: Router = Router();
 
 router.post(
+  '/',
+  [body('email').exists({ checkFalsy: true }).isEmail()],
+  validator,
+  authController.sendCode
+);
+
+router.post(
   '/sign-up',
   [
     body('email').exists({ checkFalsy: true }).isEmail(),
