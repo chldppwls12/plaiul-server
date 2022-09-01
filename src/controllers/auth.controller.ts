@@ -1,3 +1,4 @@
+import { signTokens } from '@utils/jwt';
 import { SignTokenInfo } from '@interfaces/common/tokenInfo';
 import httpStatusCode from '@utils/httpStatusCode';
 import { Request, Response } from 'express';
@@ -63,9 +64,29 @@ const register = async (req: Request, res: Response) => {
     await authService.isExistEmail(email);
     await authService.isExistNickname(nickname);
 
-    const result: SignTokenInfo = await authService.register(email, password, nickname);
+    const userIdx = await authService.register(email, password, nickname);
+    const result: SignTokenInfo = await signTokens(userIdx);
 
     return res.status(httpStatusCode.CREATED).json(successRes(result));
+  } catch (err: any) {
+    return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+  }
+};
+
+/**
+ *
+ * @route POST /api/auth/login
+ * @desc 로컬 로그인
+ * @access public
+ */
+const login = async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+
+  try {
+    const userIdx = await authService.isExistUserInfo(email, password);
+    const result: SignTokenInfo = await signTokens(userIdx);
+
+    return res.status(httpStatusCode.OK).json(successRes(result));
   } catch (err: any) {
     return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
   }
@@ -74,5 +95,6 @@ const register = async (req: Request, res: Response) => {
 export default {
   sendCode,
   verifyCodeOrNickname,
-  register
+  register,
+  login
 };

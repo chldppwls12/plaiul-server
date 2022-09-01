@@ -30,4 +30,14 @@ router.post(
   authController.register
 );
 
+router.post(
+  '/login',
+  [
+    body('email').exists({ checkFalsy: true }).isEmail(),
+    body('password').exists({ checkFalsy: true })
+  ],
+  validator,
+  authController.login
+);
+
 export default router;

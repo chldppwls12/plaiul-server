@@ -1,3 +1,4 @@
+import { PasswordDTO } from '@interfaces/common/passwordInfo';
 import 'dotenv/config';
 import nodemailer from 'nodemailer';
 import AppDataSource from '@config/data-source';
@@ -5,7 +6,7 @@ import { User } from '@entities/index';
 import { CustomError, ErrorType } from '@utils/error';
 import httpStatusCode from '@utils/httpStatusCode';
 import { signTokens } from '@utils/jwt';
-import { pwdEncrpyt } from '@utils/password';
+import { checkIdPwdVaild, pwdEncrpyt } from '@utils/password';
 import { getRandomCode } from '@utils/verificationCode';
 import redisClient from '@config/redis';
 
@@ -142,7 +143,7 @@ const register = async (email: string, password: string, nickname: string): Prom
 
     const { userIdx } = createUser!.identifiers[0];
 
-    return signTokens(userIdx);
+    return userIdx;
   } catch (err: any) {
     throw new CustomError(
       httpStatusCode.INTERAL_SERVER_ERROR,
@@ -153,10 +154,50 @@ const register = async (email: string, password: string, nickname: string): Prom
   }
 };
 
+/**
+ *
+ * @param email
+ * @param password
+ * @desc 존재하는 회원정보인지
+ * @returns userIdx
+ */
+const isExistUserInfo = async (email: string, inputPwd: string) => {
+  //이메일 확인
+  const isExistEmail = await User.findOneBy({ email });
+  if (!isExistEmail) {
+    throw new CustomError(
+      httpStatusCode.BAD_REQUEST,
+      ErrorType.INVALID_USER_INFO.message,
+      ErrorType.INVALID_USER_INFO.code,
+      []
+    );
+  }
+
+  //패스워드 확인
+  const user = await User.createQueryBuilder('user')
+    .where('user.email = :email', { email })
+    .getOne();
+  const { iv, salt, password: encryptedPwd, userIdx } = user as User;
+  const originPwd: PasswordDTO = { iv, salt, encryptedPwd };
+  const result = checkIdPwdVaild(inputPwd, originPwd);
+
+  if (!result) {
+    throw new CustomError(
+      httpStatusCode.BAD_REQUEST,
+      ErrorType.INVALID_USER_INFO.message,
+      ErrorType.INVALID_USER_INFO.code,
+      []
+    );
+  }
+
+  return userIdx;
+};
+
 export default {
   sendCode,
   isExistEmail,
   isExistNickname,
   verifyCode,
-  register
+  register,
+  isExistUserInfo
 };

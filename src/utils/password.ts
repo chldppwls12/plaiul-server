@@ -49,4 +49,4 @@ const checkIdPwdVaild = (inputPwd: string, savedPwd: PasswordDTO) => {
   return true;
 };
 
-export { pwdEncrpyt };
+export { pwdEncrpyt, checkIdPwdVaild };
