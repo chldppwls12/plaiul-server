@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { body, check } from 'express-validator';
+import { body, query } from 'express-validator';
 import { authController } from '@controllers/index';
 import validator from '@middlewares/validator';
 
@@ -10,6 +10,13 @@ router.post(
   [body('email').exists({ checkFalsy: true }).isEmail()],
   validator,
   authController.sendCode
+);
+
+router.get(
+  '/',
+  [query('email').optional().isEmail(), query('code').optional(), query('nickname').optional()],
+  validator,
+  authController.verifyCodeOrNickname
 );
 
 router.post(

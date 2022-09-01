@@ -96,6 +96,24 @@ const isExistNickname = async (nickname: string) => {
 /**
  *
  * @param email
+ * @param code
+ * @desc 인증번호 검증
+ */
+const verifyCode = async (email: string, code: string) => {
+  const verifiedCode = await redisClient.get(email);
+  if (!verifiedCode || verifiedCode !== code) {
+    throw new CustomError(
+      httpStatusCode.BAD_REQUEST,
+      ErrorType.INVALID_AUTHCODE.message,
+      ErrorType.INVALID_AUTHCODE.code,
+      []
+    );
+  }
+};
+
+/**
+ *
+ * @param email
  * @param password
  * @param nickname
  * @desc 로컬 회원가입
@@ -139,5 +157,6 @@ export default {
   sendCode,
   isExistEmail,
   isExistNickname,
+  verifyCode,
   register
 };

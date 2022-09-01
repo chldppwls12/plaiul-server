@@ -25,6 +25,33 @@ const sendCode = async (req: Request, res: Response) => {
 
 /**
  *
+ * @routes GET /api/auth/
+ * @desc 회원가입-인증번호 검증 or 회원가입-닉네임 검증
+ * @access public
+ */
+const verifyCodeOrNickname = async (req: Request, res: Response) => {
+  const email = req.query?.email as string;
+  const code = req.query?.code as string;
+  const nickname = req.query?.nickname as string;
+
+  try {
+    //회원가입-인증번호 검증
+    if (email && code) {
+      await authService.isExistEmail(email);
+      await authService.verifyCode(email, code);
+    }
+    //회원가입-닉네임 검증
+    else if (nickname) {
+      await authService.isExistNickname(nickname);
+    }
+    return res.status(httpStatusCode.OK).json(successRes({ verified: true }));
+  } catch (err: any) {
+    return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+  }
+};
+
+/**
+ *
  * @route POST /api/auth/sign-up
  * @desc 로컬 회원가입
  * @access public
@@ -46,5 +73,6 @@ const register = async (req: Request, res: Response) => {
 
 export default {
   sendCode,
+  verifyCodeOrNickname,
   register
 };
