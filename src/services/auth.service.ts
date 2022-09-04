@@ -5,7 +5,6 @@ import AppDataSource from '@config/data-source';
 import { User } from '@entities/index';
 import { CustomError, ErrorType } from '@utils/error';
 import httpStatusCode from '@utils/httpStatusCode';
-import { signTokens } from '@utils/jwt';
 import { checkIdPwdVaild, pwdEncrpyt } from '@utils/password';
 import { getRandomCode } from '@utils/verificationCode';
 import redisClient from '@config/redis';

@@ -1,6 +1,12 @@
-interface SignTokenInfo {
+interface Tokens {
   accessToken: string;
   refreshToken: string;
 }
 
-export { SignTokenInfo };
+interface VerifyTokenResult {
+  valid: boolean;
+  userIdx?: number;
+  errCode?: number;
+}
+
+export { Tokens, VerifyTokenResult };

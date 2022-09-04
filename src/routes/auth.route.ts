@@ -1,5 +1,7 @@
 import { Router } from 'express';
-import { body, query } from 'express-validator';
+import { setTokens } from './../middlewares/token';
+import { isValidJwt } from '../middlewares/token';
+import { body, header, query } from 'express-validator';
 import { authController } from '@controllers/index';
 import validator from '@middlewares/validator';
 
@@ -38,6 +40,17 @@ router.post(
   ],
   validator,
   authController.login
+);
+
+router.post(
+  '/refresh',
+  [
+    header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
+    header('refreshtoken').exists({ checkFalsy: true }).custom(isValidJwt)
+  ],
+  validator,
+  setTokens,
+  authController.tokenRefresh
 );
 
 export default router;

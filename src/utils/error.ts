@@ -20,6 +20,8 @@ const ErrorType = {
   LOGIN_REQUIRED: { code: 1100, message: '로그인 필요' },
   INVALID_TOKEN: { code: 1101, message: '유효하지 않은 토큰' },
   EXPIRED_TOKEN: { code: 1102, message: '만료된 토큰' },
+  VALID_TOKEN: { code: 1103, message: '아직 유효한 토큰' },
+  EXPIRED_REFRESH_TOKEN: { code: 1104, message: 'refreshToken 만료로 인한 재로그인 필요' },
 
   //1200 권한 관련
   UNAUTHORIZED: { code: 1200, message: '권한 없음' },

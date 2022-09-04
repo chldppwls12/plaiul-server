@@ -1,9 +1,10 @@
 import { signTokens } from '@utils/jwt';
-import { SignTokenInfo } from '@interfaces/common/tokenInfo';
+import { Tokens } from '@interfaces/common/tokenInfo';
 import httpStatusCode from '@utils/httpStatusCode';
 import { Request, Response } from 'express';
 import { authService } from '@services/index';
 import { successRes, failRes } from '@utils/response';
+import { tokenRefreshUtil } from '@utils/jwt';
 
 /**
  *
@@ -65,7 +66,7 @@ const register = async (req: Request, res: Response) => {
     await authService.isExistNickname(nickname);
 
     const userIdx = await authService.register(email, password, nickname);
-    const result: SignTokenInfo = await signTokens(userIdx);
+    const result: Tokens = await signTokens(userIdx);
 
     return res.status(httpStatusCode.CREATED).json(successRes(result));
   } catch (err: any) {
@@ -84,7 +85,26 @@ const login = async (req: Request, res: Response) => {
 
   try {
     const userIdx = await authService.isExistUserInfo(email, password);
-    const result: SignTokenInfo = await signTokens(userIdx);
+    const result: Tokens = await signTokens(userIdx);
+
+    return res.status(httpStatusCode.OK).json(successRes(result));
+  } catch (err: any) {
+    return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+  }
+};
+
+/**
+ *
+ * @route POST /api/auth/refresh
+ * @desc 토큰 재발급
+ * @access private
+ */
+const tokenRefresh = async (req: Request, res: Response) => {
+  const accessToken = req.headers.accessToken as string;
+  const refreshToken = req.headers.refreshToken as string;
+
+  try {
+    const result = await tokenRefreshUtil(accessToken, refreshToken);
 
     return res.status(httpStatusCode.OK).json(successRes(result));
   } catch (err: any) {
@@ -96,5 +116,6 @@ export default {
   sendCode,
   verifyCodeOrNickname,
   register,
-  login
+  login,
+  tokenRefresh
 };
