@@ -23,6 +23,9 @@ export class StoryComment extends BaseEntity {
   @JoinColumn({ name: 'storyIdx' })
   story: Story;
 
+  @Column()
+  storyIdx: number;
+
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 

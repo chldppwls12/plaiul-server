@@ -4,7 +4,8 @@ import {
   BaseEntity,
   CreateDateColumn,
   ManyToOne,
-  JoinColumn
+  JoinColumn,
+  Column
 } from 'typeorm';
 import { User, Story } from '@entities/index';
 
@@ -19,6 +20,9 @@ export class StoryLike extends BaseEntity {
 
   @ManyToOne(() => Story, story => story.likes)
   story: Story;
+
+  @Column()
+  storyIdx: number;
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;

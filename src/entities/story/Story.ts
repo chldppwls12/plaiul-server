@@ -34,6 +34,9 @@ export class Story extends BaseEntity {
   @JoinColumn({ name: 'userIdx' })
   user: User;
 
+  @Column()
+  userIdx: number;
+
   @OneToMany(() => StoryImage, storyImage => storyImage.story)
   images: StoryImage[];
 

@@ -12,4 +12,7 @@ export class StoryImage extends BaseEntity {
   @ManyToOne(() => Story, story => story.images)
   @JoinColumn({ name: 'storyIdx' })
   story: Story;
+
+  @Column()
+  storyIdx: number;
 }

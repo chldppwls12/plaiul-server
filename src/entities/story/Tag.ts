@@ -12,4 +12,7 @@ export class StoryTag extends BaseEntity {
   @ManyToOne(() => Story, story => story.tags)
   @JoinColumn({ name: 'storyIdx' })
   story: Story;
+
+  @Column()
+  storyIdx: number;
 }

@@ -37,15 +37,14 @@ const signTokens = async (userIdx: number): Promise<Tokens> => {
 };
 
 /**
- *
+ * @param {(accessToken, refreshToken)} type
  * @param token
  * @desc accessToken or refreshToken 유효 여부 확인
  */
-const verifyToken = (token: string): VerifyTokenResult => {
+const verifyToken = (type: string, token: string): VerifyTokenResult => {
   let result: VerifyTokenResult = {
     valid: true
   };
-
   try {
     const decoded: any = jwt.verify(token, jwtSecret);
     result = {
@@ -56,7 +55,10 @@ const verifyToken = (token: string): VerifyTokenResult => {
     if (err instanceof jwt.TokenExpiredError) {
       result = {
         valid: false,
-        errCode: ErrorType.EXPIRED_TOKEN.code
+        errCode:
+          type === 'accessToken'
+            ? ErrorType.EXPIRED_TOKEN.code
+            : ErrorType.EXPIRED_REFRESH_TOKEN.code
       };
     } else {
       result = {
@@ -80,7 +82,7 @@ const verifyToken = (token: string): VerifyTokenResult => {
  * 2.3 만료된 경우, refreshToken 유효 => 토큰 재발급
  */
 const tokenRefreshUtil = async (accessToken: string, refreshToken: string): Promise<Tokens> => {
-  const verifyAccessTokenResult: VerifyTokenResult = verifyToken(accessToken);
+  const verifyAccessTokenResult: VerifyTokenResult = verifyToken('accessToken', accessToken);
 
   //검증 실패
   if (
@@ -105,8 +107,7 @@ const tokenRefreshUtil = async (accessToken: string, refreshToken: string): Prom
   }
 
   //accessToken 만료 이후
-  const verifyRefreshTokenResult: VerifyTokenResult = verifyToken(refreshToken);
-
+  const verifyRefreshTokenResult: VerifyTokenResult = verifyToken('refreshToken', refreshToken);
   if (!verifyRefreshTokenResult.valid) {
     //refreshToken 검증 실패
     if (verifyRefreshTokenResult.errCode === ErrorType.INVALID_TOKEN.code) {
@@ -134,4 +135,4 @@ const tokenRefreshUtil = async (accessToken: string, refreshToken: string): Prom
   return result;
 };
 
-export { signTokens, tokenRefreshUtil };
+export { signTokens, tokenRefreshUtil, verifyToken };
