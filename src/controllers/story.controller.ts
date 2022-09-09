@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { storyService } from '@services/index';
 import httpStatusCode from '@utils/httpStatusCode';
-import { successRes, failRes } from '@utils/response';
+import { successRes, successResWithMeta, failRes } from '@utils/response';
 import { createStoryResult } from '@interfaces/story';
 
 /**
@@ -23,6 +23,27 @@ const createStory = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ *
+ * @routes GET /api/stories
+ * @desc 스토리 전체 조회
+ *
+ */
+const getStories = async (req: Request, res: Response) => {
+  const sort = req.query.sort as string;
+  const cursor = req.query?.cursor as string;
+  const userIdx = req?.userIdx;
+
+  try {
+    const result = await storyService.getStories(userIdx, sort, cursor);
+    const meta = await storyService.getStoriesMeta(cursor);
+    return res.status(httpStatusCode.OK).json(successResWithMeta(result, meta));
+  } catch (err: any) {
+    return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+  }
+};
+
 export default {
-  createStory
+  createStory,
+  getStories
 };

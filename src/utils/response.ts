@@ -4,6 +4,13 @@ const successRes = (data: object | object[]) => {
   };
 };
 
+const successResWithMeta = (data: object | object[], meta: object) => {
+  return {
+    data,
+    meta
+  };
+};
+
 const failRes = (code: number, message: string, errors: any[]) => {
   return {
     code,
@@ -12,4 +19,4 @@ const failRes = (code: number, message: string, errors: any[]) => {
   };
 };
 
-export { successRes, failRes };
+export { successRes, successResWithMeta, failRes };
