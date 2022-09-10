@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import storyController from '@controllers/story.controller';
 import validator from '@middlewares/validator';
-import { body, header, query } from 'express-validator';
+import { body, header, query, param } from 'express-validator';
 import { authJwt } from '@middlewares/token';
 import { isValidJwt } from '@middlewares/token';
 import { storyUpload } from '@utils/multer';
@@ -34,6 +34,14 @@ router.get(
   ],
   validator,
   storyController.getStories
+);
+
+router.get(
+  '/:storyIdx',
+  authJwt,
+  [param('storyIdx').exists({ checkFalsy: true })],
+  validator,
+  storyController.getStory
 );
 
 export default router;

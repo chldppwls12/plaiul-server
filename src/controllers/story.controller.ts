@@ -43,7 +43,26 @@ const getStories = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ *
+ * @routes GET /api/stories/:storyIdx
+ * @desc 스토리 상세 조회
+ */
+const getStory = async (req: Request, res: Response) => {
+  const storyIdx = parseInt(req.params.storyIdx);
+  const userIdx = req?.userIdx;
+
+  try {
+    await storyService.isExistStory(storyIdx);
+    const result = await storyService.getStory(userIdx, storyIdx);
+    return res.status(httpStatusCode.OK).json(successRes(result));
+  } catch (err: any) {
+    return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+  }
+};
+
 export default {
   createStory,
-  getStories
+  getStories,
+  getStory
 };

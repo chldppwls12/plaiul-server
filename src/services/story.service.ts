@@ -1,4 +1,4 @@
-import { Story, StoryTag, StoryImage, StoryLike } from '@entities/index';
+import { Story, StoryTag, StoryImage, StoryLike, StoryComment } from '@entities/index';
 import AppDataSource from '@config/data-source';
 import { CustomError } from '@utils/error';
 import httpStatusCode from '@utils/httpStatusCode';
@@ -188,4 +188,110 @@ const getStoriesMeta = async (cursor: string | undefined) => {
   return meta;
 };
 
-export default { createStory, getStories, getStoriesMeta };
+/**
+ *
+ * @param storyIdx
+ * @desc 스토리 존재 여부 체크
+ */
+const isExistStory = async (storyIdx: number) => {
+  try {
+    await Story.createQueryBuilder('story')
+      .select()
+      .where('story.storyIdx = :storyIdx', { storyIdx })
+      .getOneOrFail();
+  } catch (err: any) {
+    throw new CustomError(
+      httpStatusCode.BAD_REQUEST,
+      ErrorType.CLIENT_ERR.message,
+      ErrorType.CLIENT_ERR.code,
+      [err.message]
+    );
+  }
+};
+
+/**
+ *
+ * @param userIdx
+ * @param storyIdx
+ * @desc 스토리 조회
+ */
+const getStory = async (userIdx: number | undefined, storyIdx: number): Promise<GetStoryDTO> => {
+  try {
+    const story = await Story.createQueryBuilder('story')
+      .select([
+        'story.storyIdx AS storyIdx',
+        'story.title AS title',
+        'story.content AS content',
+        'user.userIdx AS userIdx',
+        'user.nickname AS nickname',
+        'IF(user.profile= "", NULL, user.profile) AS profile'
+      ])
+      .addSelect('CONVERT_TZ(story.createdAt, "UTC", "Asia/Seoul")', 'createdAt')
+      .addSelect(
+        qb =>
+          qb
+            .select('COUNT(*)')
+            .from(StoryComment, 'storyComment')
+            .where('storyComment.storyIdx = :storyIdx', { storyIdx }),
+        'commentCnt'
+      )
+      .addSelect(
+        qb =>
+          qb
+            .select('storyLikeIdx')
+            .from(StoryLike, 'storyLike')
+            .where('storyLike.storyIdx = :storyIdx', { storyIdx })
+            .andWhere('storyLike.userIdx = :userIdx', { userIdx }),
+        'isLiked'
+      )
+      .addSelect(
+        qb =>
+          qb
+            .select('COUNT(*) AS likeCnt')
+            .from(StoryLike, 'storyLike')
+            .where('storyLike.storyIdx = :storyIdx', { storyIdx }),
+        'likeCnt'
+      )
+      .leftJoin('story.user', 'user')
+      .where('story.storyIdx = :storyIdx', { storyIdx })
+      .getRawOne();
+
+    const images = await StoryImage.createQueryBuilder('storyImage')
+      .select('storyImage.url AS url')
+      .where('storyImage.storyIdx = :storyIdx', { storyIdx })
+      .getRawMany();
+
+    story.images = [];
+    images.map(image => story.images.push(image.url));
+
+    const tags = await StoryTag.createQueryBuilder('storyTag')
+      .select('storyTag.name AS name')
+      .where('storyTag.storyIdx = :storyIdx', { storyIdx })
+      .getRawMany();
+
+    story.tags = [];
+    tags.map(tag => story.tags.push(tag.name));
+
+    story.isLiked = story.isLiked ? true : false;
+
+    story.user = {
+      userIdx: story.userIdx,
+      nickname: story.nickname,
+      profile: story.profile
+    };
+
+    delete story.userIdx;
+    delete story.nickname;
+    delete story.profile;
+
+    return story;
+  } catch (err: any) {
+    throw new CustomError(
+      httpStatusCode.INTERAL_SERVER_ERROR,
+      ErrorType.INTERAL_SERVER_ERROR.message,
+      ErrorType.INTERAL_SERVER_ERROR.code,
+      [err.message]
+    );
+  }
+};
+export default { createStory, getStories, getStoriesMeta, isExistStory, getStory };

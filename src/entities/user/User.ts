@@ -23,6 +23,9 @@ export class User extends BaseEntity {
   nickname: string;
 
   @Column({ type: 'text' })
+  profile: string;
+
+  @Column({ type: 'text' })
   password: string;
 
   @Column({ type: 'text' })
