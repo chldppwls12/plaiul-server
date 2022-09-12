@@ -105,10 +105,32 @@ const deleteStory = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ *
+ * @routes POST /api/stories/:storyIdx/report
+ * @desc 스토리 신고
+ */
+const reportStory = async (req: Request, res: Response) => {
+  const storyIdx = parseInt(req.params.storyIdx);
+  const userIdx = req.userIdx as number;
+  const { reasonIdx, reason: etcReason } = req.body;
+
+  try {
+    await storyService.isExistStory(storyIdx);
+    await storyService.canReportStory(userIdx, storyIdx);
+    await storyService.reportStory(userIdx, storyIdx, reasonIdx, etcReason);
+
+    return res.status(httpStatusCode.OK).json(successRes({ reported: true }));
+  } catch (err: any) {
+    return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+  }
+};
+
 export default {
   createStory,
   getStories,
   getStory,
   updateStory,
-  deleteStory
+  deleteStory,
+  reportStory
 };

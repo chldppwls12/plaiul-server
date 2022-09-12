@@ -1,11 +1,19 @@
-import { Story, StoryTag, StoryImage, StoryLike, StoryComment } from '@entities/index';
+import {
+  Story,
+  StoryTag,
+  StoryImage,
+  StoryLike,
+  StoryComment,
+  StoryReqReport
+} from '@entities/index';
 import AppDataSource from '@config/data-source';
 import { CustomError } from '@utils/error';
 import httpStatusCode from '@utils/httpStatusCode';
 import { ErrorType } from '@utils/error';
 import { createStoryResult } from '@interfaces/story';
 import { GetStoryDTO } from '@interfaces/story';
-import { itemsPerPage, sortTypes } from '@utils/constants';
+import { itemsPerPage, reportType, sortTypes } from '@utils/constants';
+import { ReportReason } from '@entities/common/Enums';
 
 /**
  *
@@ -422,6 +430,107 @@ const deletestory = async (storyIdx: number) => {
   }
 };
 
+/**
+ *
+ * @param userIdx
+ * @param storyIdx
+ * @desc 스토리 신고 가능한지
+ */
+const canReportStory = async (userIdx: number, storyIdx: number) => {
+  const isUserStory = await Story.createQueryBuilder()
+    .select()
+    .where('userIdx = :userIdx', { userIdx })
+    .andWhere('storyIdx = :storyIdx', { storyIdx })
+    .getOne();
+
+  if (isUserStory) {
+    throw new CustomError(
+      httpStatusCode.BAD_REQUEST,
+      ErrorType.CAN_NOT_REPORT_SELF.message,
+      ErrorType.CAN_NOT_REPORT_SELF.code,
+      []
+    );
+  }
+
+  const isReported = await StoryReqReport.createQueryBuilder()
+    .select()
+    .where('userIdx = :userIdx', { userIdx })
+    .andWhere('storyIdx = :storyIdx', { storyIdx })
+    .getOne();
+
+  if (isReported) {
+    throw new CustomError(
+      httpStatusCode.BAD_REQUEST,
+      ErrorType.ALREADY_REPORT.message,
+      ErrorType.ALREADY_REPORT.code,
+      []
+    );
+  }
+};
+
+/**
+ *
+ * @param userIdx
+ * @param storyIdx
+ * @param reasonIdx
+ * @param reason
+ * @desc 스토리 신고
+ */
+const reportStory = async (
+  userIdx: number,
+  storyIdx: number,
+  reasonIdx: number,
+  etcReason: string
+) => {
+  try {
+    let reason: ReportReason;
+    switch (reasonIdx) {
+      case reportType.CURSE:
+        reason = ReportReason.CURSE;
+        break;
+      case reportType.PROMOTE:
+        reason = ReportReason.PROMOTE;
+        break;
+      case reportType.ILLEGALITY:
+        reason = ReportReason.ILLEGALITY;
+        break;
+      case reportType.OBSCENCE:
+        reason = ReportReason.OBSCENCE;
+        break;
+      case reportType.LEAKAGE:
+        reason = ReportReason.LEAKAGE;
+        break;
+      case reportType.SPAM:
+        reason = ReportReason.SPAM;
+        break;
+      case reportType.ETC:
+        reason = ReportReason.ETC;
+        break;
+    }
+
+    await AppDataSource.manager.transaction(async transactionalEntityManager => {
+      transactionalEntityManager
+        .createQueryBuilder()
+        .insert()
+        .into(StoryReqReport)
+        .values({
+          userIdx,
+          storyIdx,
+          reason,
+          etcReason
+        })
+        .execute();
+    });
+  } catch (err: any) {
+    throw new CustomError(
+      httpStatusCode.INTERAL_SERVER_ERROR,
+      ErrorType.ALREADY_REPORT.message,
+      ErrorType.ALREADY_REPORT.code,
+      []
+    );
+  }
+};
+
 export default {
   createStory,
   getStories,
@@ -430,5 +539,7 @@ export default {
   getStory,
   isStoryOwner,
   updateStory,
-  deletestory
+  deletestory,
+  canReportStory,
+  reportStory
 };

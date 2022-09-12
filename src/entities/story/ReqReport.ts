@@ -25,6 +25,9 @@ export class StoryReqReport extends BaseEntity {
   @JoinColumn({ name: 'userIdx' })
   user: User;
 
+  @Column()
+  userIdx: number;
+
   @ManyToOne(() => Story, story => story.reqReports)
   @JoinColumn({ name: 'storyIdx' })
   story: Story;

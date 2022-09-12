@@ -70,4 +70,17 @@ router.delete(
   storyController.deleteStory
 );
 
+router.post(
+  '/:storyIdx/report',
+  [
+    header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
+    param('storyIdx').exists({ checkFalsy: true }),
+    body('reasonIdx').exists({ checkFalsy: true }).isIn([1, 2, 3, 4, 5, 6, 7]),
+    body('reason').optional()
+  ],
+  validator,
+  authJwt,
+  storyController.reportStory
+);
+
 export default router;
