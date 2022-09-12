@@ -85,9 +85,30 @@ const updateStory = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ *
+ * @routes DELETE /api/stories/:storyIdx
+ * @desc 스토리 삭제
+ */
+const deleteStory = async (req: Request, res: Response) => {
+  const storyIdx = parseInt(req.params.storyIdx);
+  const userIdx = req.userIdx as number;
+
+  try {
+    await storyService.isExistStory(storyIdx);
+    await storyService.isStoryOwner(userIdx, storyIdx);
+    await storyService.deletestory(storyIdx);
+
+    return res.status(httpStatusCode.OK).json(successRes({ deleted: true }));
+  } catch (err: any) {
+    return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+  }
+};
+
 export default {
   createStory,
   getStories,
   getStory,
-  updateStory
+  updateStory,
+  deleteStory
 };

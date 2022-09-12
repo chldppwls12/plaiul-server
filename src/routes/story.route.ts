@@ -59,4 +59,15 @@ router.patch(
   storyController.updateStory
 );
 
+router.delete(
+  '/:storyIdx',
+  [
+    header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
+    param('storyIdx').exists({ checkFalsy: true })
+  ],
+  validator,
+  authJwt,
+  storyController.deleteStory
+);
+
 export default router;

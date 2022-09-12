@@ -202,9 +202,9 @@ const isExistStory = async (storyIdx: number) => {
   } catch (err: any) {
     throw new CustomError(
       httpStatusCode.BAD_REQUEST,
-      ErrorType.CLIENT_ERR.message,
-      ErrorType.CLIENT_ERR.code,
-      [err.message]
+      ErrorType.INVALID_STORYIDX.message,
+      ErrorType.INVALID_STORYIDX.code,
+      []
     );
   }
 };
@@ -397,6 +397,31 @@ const updateStory = async (
   }
 };
 
+/**
+ *
+ * @param storyIdx
+ * @desc 스토리 삭제
+ */
+const deletestory = async (storyIdx: number) => {
+  try {
+    await AppDataSource.manager.transaction(async transactionalEntityManager => {
+      await transactionalEntityManager
+        .createQueryBuilder()
+        .softDelete()
+        .from(Story)
+        .where('storyIdx = :storyIdx', { storyIdx })
+        .execute();
+    });
+  } catch (err: any) {
+    throw new CustomError(
+      httpStatusCode.INTERAL_SERVER_ERROR,
+      ErrorType.INTERAL_SERVER_ERROR.message,
+      ErrorType.INTERAL_SERVER_ERROR.code,
+      [err.message]
+    );
+  }
+};
+
 export default {
   createStory,
   getStories,
@@ -404,5 +429,6 @@ export default {
   isExistStory,
   getStory,
   isStoryOwner,
-  updateStory
+  updateStory,
+  deletestory
 };

@@ -6,7 +6,7 @@ import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '@utils/jwt';
 
 export const isValidJwt: CustomValidator = jwtFormat => {
-  if (jwtFormat.split(' ').length !== 2 || jwtFormat.split(' ')[0] !== 'Bearer') {
+  if (!jwtFormat || jwtFormat.split(' ').length !== 2 || jwtFormat.split(' ')[0] !== 'Bearer') {
     throw new Error('잘못된 JWT 포맷');
   }
   return true;
