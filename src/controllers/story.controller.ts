@@ -1,3 +1,4 @@
+import { LikeResult } from '@interfaces/common/response';
 import { Request, Response } from 'express';
 import { storyService } from '@services/index';
 import httpStatusCode from '@utils/httpStatusCode';
@@ -126,11 +127,31 @@ const reportStory = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ *
+ * @routes PATCH /api/stories/:storyIdx/like
+ * @desc 스토리 좋아요 변경
+ */
+const changeStoryLike = async (req: Request, res: Response) => {
+  const storyIdx = parseInt(req.params.storyIdx);
+  const userIdx = req.userIdx as number;
+
+  try {
+    await storyService.isExistStory(storyIdx);
+    const result = await storyService.changeStoryLike(userIdx, storyIdx);
+
+    return res.status(httpStatusCode.OK).json(successRes(result));
+  } catch (err: any) {
+    return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+  }
+};
+
 export default {
   createStory,
   getStories,
   getStory,
   updateStory,
   deleteStory,
-  reportStory
+  reportStory,
+  changeStoryLike
 };

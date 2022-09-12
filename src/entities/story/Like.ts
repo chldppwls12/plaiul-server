@@ -18,6 +18,9 @@ export class StoryLike extends BaseEntity {
   @JoinColumn({ name: 'userIdx' })
   user: User;
 
+  @Column()
+  userIdx: number;
+
   @ManyToOne(() => Story, story => story.likes)
   @JoinColumn({ name: 'storyIdx' })
   story: Story;

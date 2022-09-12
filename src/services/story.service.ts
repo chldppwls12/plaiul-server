@@ -1,3 +1,4 @@
+import { LikeResult } from '@interfaces/common/response';
 import {
   Story,
   StoryTag,
@@ -473,14 +474,14 @@ const canReportStory = async (userIdx: number, storyIdx: number) => {
  * @param userIdx
  * @param storyIdx
  * @param reasonIdx
- * @param reason
+ * @param etcReason
  * @desc 스토리 신고
  */
 const reportStory = async (
   userIdx: number,
   storyIdx: number,
   reasonIdx: number,
-  etcReason: string
+  etcReason: string | undefined
 ) => {
   try {
     let reason: ReportReason;
@@ -524,8 +525,59 @@ const reportStory = async (
   } catch (err: any) {
     throw new CustomError(
       httpStatusCode.INTERAL_SERVER_ERROR,
-      ErrorType.ALREADY_REPORT.message,
-      ErrorType.ALREADY_REPORT.code,
+      ErrorType.INTERAL_SERVER_ERROR.message,
+      ErrorType.INTERAL_SERVER_ERROR.code,
+      []
+    );
+  }
+};
+
+/**
+ *
+ * @param userIdx
+ * @param storyIdx
+ * @desc 스토리 좋아요 변경
+ */
+const changeStoryLike = async (userIdx: number, storyIdx: number): Promise<LikeResult> => {
+  let result: LikeResult = {
+    isLiked: true
+  };
+  try {
+    const likeStatus = await StoryLike.createQueryBuilder()
+      .select()
+      .where('userIdx = :userIdx', { userIdx })
+      .andWhere('storyIdx = :storyIdx', { storyIdx })
+      .getOne();
+
+    await AppDataSource.manager.transaction(async transactionalEntityManager => {
+      if (likeStatus) {
+        await transactionalEntityManager
+          .createQueryBuilder()
+          .delete()
+          .from(StoryLike)
+          .where('userIdx = :userIdx', { userIdx })
+          .andWhere('storyIdx = :storyIdx', { storyIdx })
+          .execute();
+
+        result = { isLiked: false };
+      } else {
+        await transactionalEntityManager
+          .createQueryBuilder()
+          .insert()
+          .into(StoryLike)
+          .values({ userIdx, storyIdx })
+          .execute();
+
+        result = { isLiked: true };
+      }
+    });
+
+    return result;
+  } catch (err: any) {
+    throw new CustomError(
+      httpStatusCode.INTERAL_SERVER_ERROR,
+      ErrorType.INTERAL_SERVER_ERROR.message,
+      ErrorType.INTERAL_SERVER_ERROR.code,
       []
     );
   }
@@ -541,5 +593,6 @@ export default {
   updateStory,
   deletestory,
   canReportStory,
-  reportStory
+  reportStory,
+  changeStoryLike
 };

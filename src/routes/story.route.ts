@@ -83,4 +83,15 @@ router.post(
   storyController.reportStory
 );
 
+router.patch(
+  '/:storyIdx/like',
+  [
+    header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
+    param('storyIdx').exists({ checkFalsy: true })
+  ],
+  validator,
+  authJwt,
+  storyController.changeStoryLike
+);
+
 export default router;
