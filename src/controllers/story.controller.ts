@@ -146,6 +146,26 @@ const changeStoryLike = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ *
+ * @routes req POST /api/stories/:storyIdx/blick
+ * @desc 스토리 차단
+ */
+const blockStory = async (req: Request, res: Response) => {
+  const storyIdx = parseInt(req.params.storyIdx);
+  const userIdx = req.userIdx as number;
+
+  try {
+    await storyService.isExistStory(storyIdx);
+    await storyService.canBlockStory(userIdx, storyIdx);
+    await storyService.blockStoryUser(userIdx, storyIdx);
+
+    return res.status(httpStatusCode.OK).json(successRes({ blocked: true }));
+  } catch (err: any) {
+    return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+  }
+};
+
 export default {
   createStory,
   getStories,
@@ -153,5 +173,6 @@ export default {
   updateStory,
   deleteStory,
   reportStory,
-  changeStoryLike
+  changeStoryLike,
+  blockStory
 };
