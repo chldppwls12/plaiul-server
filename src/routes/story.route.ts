@@ -44,4 +44,19 @@ router.get(
   storyController.getStory
 );
 
+router.patch(
+  '/:storyIdx',
+  authJwt,
+  storyUpload.array('images', 3),
+  [
+    header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
+    param('storyIdx').exists({ checkFalsy: true }),
+    body('title').optional(),
+    body('content').optional(),
+    body('tags').optional()
+  ],
+  validator,
+  storyController.updateStory
+);
+
 export default router;

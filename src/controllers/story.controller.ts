@@ -61,8 +61,33 @@ const getStory = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ *
+ * @routes PATCH /api/stories/:storyIdx
+ * @desc 스토리 수정
+ */
+const updateStory = async (req: Request, res: Response) => {
+  const title = req.body?.title;
+  const content = req.body?.content;
+  const tags = req.body?.tags ? req.body?.tags : [];
+  const images = (req?.files as any[])?.map(item => item.location);
+
+  const storyIdx = parseInt(req.params.storyIdx);
+  const userIdx = req.userIdx as number;
+
+  try {
+    await storyService.isExistStory(storyIdx);
+    await storyService.isStoryOwner(userIdx, storyIdx);
+    const result = await storyService.updateStory(storyIdx, title, content, tags, images);
+    return res.status(httpStatusCode.OK).json(successRes(result));
+  } catch (err: any) {
+    return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+  }
+};
+
 export default {
   createStory,
   getStories,
-  getStory
+  getStory,
+  updateStory
 };

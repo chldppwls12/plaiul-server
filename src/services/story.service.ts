@@ -294,4 +294,115 @@ const getStory = async (userIdx: number | undefined, storyIdx: number): Promise<
     );
   }
 };
-export default { createStory, getStories, getStoriesMeta, isExistStory, getStory };
+
+/**
+ *
+ * @param userIdx
+ * @param storyIdx
+ * @desc 스토리 작성자 여부
+ */
+const isStoryOwner = async (userIdx: number, storyIdx: number) => {
+  try {
+    await Story.createQueryBuilder()
+      .where('storyIdx = :storyIdx', { storyIdx })
+      .andWhere('userIdx = :userIdx', { userIdx })
+      .getOneOrFail();
+  } catch (err: any) {
+    throw new CustomError(
+      httpStatusCode.UNAUTHORIZED,
+      ErrorType.UNAUTHORIZED.message,
+      ErrorType.UNAUTHORIZED.code,
+      [err.message]
+    );
+  }
+};
+
+/**
+ *
+ * @param storyIdx
+ * @param title
+ * @param content
+ * @param tags
+ * @param images
+ * @desc 스토리 수정
+ */
+const updateStory = async (
+  storyIdx: number,
+  title: string | undefined,
+  content: string | undefined,
+  tags: string[] | [],
+  images: string[] | []
+) => {
+  try {
+    await AppDataSource.manager.transaction(async transactionalEntityManager => {
+      await transactionalEntityManager.query(
+        `UPDATE story SET title = IFNULL(?, title),content = IFNULL(?, content)
+        WHERE storyIdx = ?`,
+        [title, content, storyIdx]
+      );
+
+      if (images.length > 0) {
+        await transactionalEntityManager
+          .createQueryBuilder()
+          .delete()
+          .from(StoryImage)
+          .where('storyIdx = :storyIdx', { storyIdx })
+          .execute();
+
+        images.map(async image => {
+          await transactionalEntityManager
+            .createQueryBuilder()
+            .insert()
+            .into(StoryImage)
+            .values({
+              url: image,
+              storyIdx
+            })
+            .execute();
+        });
+      }
+
+      if (tags.length > 0) {
+        await transactionalEntityManager
+          .createQueryBuilder()
+          .delete()
+          .from(StoryTag)
+          .where('storyIdx = :storyIdx', { storyIdx })
+          .execute();
+
+        tags.map(async tag => {
+          await transactionalEntityManager
+            .createQueryBuilder()
+            .insert()
+            .into(StoryTag)
+            .values({
+              name: tag,
+              storyIdx
+            })
+            .execute();
+        });
+      }
+    });
+
+    return {
+      modified: true
+    };
+  } catch (err: any) {
+    throw new CustomError(
+      httpStatusCode.INTERAL_SERVER_ERROR,
+      ErrorType.INTERAL_SERVER_ERROR.message,
+      ErrorType.INTERAL_SERVER_ERROR.code,
+      [err.message]
+    );
+  }
+};
+
+export default {
+  createStory,
+  getStories,
+  getStoriesMeta,
+  isExistStory,
+  getStory,
+  isStoryOwner,
+  updateStory
+};
