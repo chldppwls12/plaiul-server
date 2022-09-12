@@ -13,7 +13,6 @@ const router: Router = Router();
  */
 router.post(
   '/',
-  authJwt,
   storyUpload.array('images', 3),
   [
     header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
@@ -22,31 +21,31 @@ router.post(
     body('tags').optional()
   ],
   validator,
+  authJwt,
   storyController.createStory
 );
 
 router.get(
   '/',
-  authJwt,
   [
     query('sort').exists({ checkFalsy: true }).isIn(['popular', 'recently']),
     query('cursor').optional()
   ],
   validator,
+  authJwt,
   storyController.getStories
 );
 
 router.get(
   '/:storyIdx',
-  authJwt,
   [param('storyIdx').exists({ checkFalsy: true })],
   validator,
+  authJwt,
   storyController.getStory
 );
 
 router.patch(
   '/:storyIdx',
-  authJwt,
   storyUpload.array('images', 3),
   [
     header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
@@ -56,6 +55,7 @@ router.patch(
     body('tags').optional()
   ],
   validator,
+  authJwt,
   storyController.updateStory
 );
 

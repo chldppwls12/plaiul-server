@@ -14,22 +14,23 @@ export const isValidJwt: CustomValidator = jwtFormat => {
 
 export const authJwt = (req: Request, res: Response, next: NextFunction) => {
   const accessToken = req.headers.authorization?.split(' ')[1] as string;
-  const result = verifyToken('accessToken', accessToken);
+  if (accessToken) {
+    const result = verifyToken('accessToken', accessToken);
 
-  if (!result.valid) {
-    if (result.errCode === ErrorType.EXPIRED_TOKEN.code) {
-      return res
-        .status(httpStatusCode.BAD_REQUEST)
-        .json(failRes(ErrorType.EXPIRED_TOKEN.code, ErrorType.EXPIRED_TOKEN.message, []));
-    } else if (result.errCode === ErrorType.INVALID_TOKEN.code) {
-      return res
-        .status(httpStatusCode.BAD_REQUEST)
-        .json(failRes(ErrorType.INVALID_TOKEN.code, ErrorType.INVALID_TOKEN.message, []));
+    if (!result.valid) {
+      if (result.errCode === ErrorType.EXPIRED_TOKEN.code) {
+        return res
+          .status(httpStatusCode.BAD_REQUEST)
+          .json(failRes(ErrorType.EXPIRED_TOKEN.code, ErrorType.EXPIRED_TOKEN.message, []));
+      } else if (result.errCode === ErrorType.INVALID_TOKEN.code) {
+        return res
+          .status(httpStatusCode.BAD_REQUEST)
+          .json(failRes(ErrorType.INVALID_TOKEN.code, ErrorType.INVALID_TOKEN.message, []));
+      }
     }
+
+    req.userIdx = result.userIdx;
   }
-
-  req.userIdx = result.userIdx;
-
   next();
 };
 
