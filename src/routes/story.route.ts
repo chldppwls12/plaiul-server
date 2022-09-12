@@ -94,4 +94,15 @@ router.patch(
   storyController.changeStoryLike
 );
 
+router.post(
+  '/:storyIdx/block',
+  [
+    header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
+    param('storyIdx').exists({ checkFalsy: true })
+  ],
+  validator,
+  authJwt,
+  storyController.blockStory
+);
+
 export default router;

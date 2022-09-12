@@ -8,7 +8,16 @@ import {
   DeleteDateColumn,
   OneToMany
 } from 'typeorm';
-import { Story, StoryReqReport, StoryLike, Qna, QnaLike, QnaReqReport, Tip } from '@entities/index';
+import {
+  Story,
+  StoryReqReport,
+  StoryLike,
+  Qna,
+  QnaLike,
+  QnaReqReport,
+  Tip,
+  Block
+} from '@entities/index';
 import { LoginType } from './../common/Enums';
 
 @Entity()
@@ -60,6 +69,9 @@ export class User extends BaseEntity {
 
   @OneToMany(() => Tip, tip => tip.user)
   tips!: Tip[];
+
+  @OneToMany(() => Block, block => block.user)
+  blocks!: Block[];
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;

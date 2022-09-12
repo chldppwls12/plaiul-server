@@ -12,3 +12,4 @@ export { QnaComment } from './qna/Comment';
 export { Tip } from './tip/Tip';
 export { TipImage } from './tip/Image';
 export { TipText } from './tip/text';
+export { Block } from './user/Block';
