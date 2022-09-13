@@ -1,8 +1,8 @@
 export { User } from './user/User';
 export { Story } from './story/Story';
 export { StoryComment } from './story/Comment';
-export { StoryImage } from './Story/Image';
-export { StoryReqReport } from './Story/ReqReport';
+export { StoryImage } from './story/Image';
+export { StoryReqReport } from './story/ReqReport';
 export { StoryTag } from './story/Tag';
 export { StoryLike } from './story/Like';
 export { Qna } from './qna/Qna';
@@ -11,5 +11,5 @@ export { QnaReqReport } from './qna/ReqReport';
 export { QnaComment } from './qna/Comment';
 export { Tip } from './tip/Tip';
 export { TipImage } from './tip/Image';
-export { TipText } from './tip/text';
+export { TipText } from './tip/Text';
 export { Block } from './user/Block';
