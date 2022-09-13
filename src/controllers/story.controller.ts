@@ -1,3 +1,4 @@
+import { CustomError, ErrorType } from '@utils/error';
 import { Request, Response } from 'express';
 import { storyService } from '@services/index';
 import httpStatusCode from '@utils/httpStatusCode';
@@ -54,8 +55,17 @@ const getStory = async (req: Request, res: Response) => {
 
   try {
     await storyService.isExistStory(storyIdx);
+
     if (userIdx) {
-      await storyService.isBlockedStory(userIdx, storyIdx);
+      const isBlockedStory = await storyService.isBlockedStory(userIdx, storyIdx);
+      if (isBlockedStory) {
+        throw new CustomError(
+          httpStatusCode.BAD_REQUEST,
+          ErrorType.BLOCKED_USER_STORY.message,
+          ErrorType.BLOCKED_USER_STORY.code,
+          []
+        );
+      }
     }
     const result = await storyService.getStory(userIdx, storyIdx);
     return res.status(httpStatusCode.OK).json(successRes(result));
@@ -148,26 +158,6 @@ const changeStoryLike = async (req: Request, res: Response) => {
   }
 };
 
-/**
- *
- * @routes req POST /api/stories/:storyIdx/blick
- * @desc 스토리 차단
- */
-const blockStory = async (req: Request, res: Response) => {
-  const storyIdx = parseInt(req.params.storyIdx);
-  const userIdx = req.userIdx as number;
-
-  try {
-    await storyService.isExistStory(storyIdx);
-    await storyService.canBlockStory(userIdx, storyIdx);
-    await storyService.blockStoryUser(userIdx, storyIdx);
-
-    return res.status(httpStatusCode.OK).json(successRes({ blocked: true }));
-  } catch (err: any) {
-    return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
-  }
-};
-
 export default {
   createStory,
   getStories,
@@ -175,6 +165,5 @@ export default {
   updateStory,
   deleteStory,
   reportStory,
-  changeStoryLike,
-  blockStory
+  changeStoryLike
 };

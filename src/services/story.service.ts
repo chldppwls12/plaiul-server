@@ -584,6 +584,36 @@ const reportStory = async (
  *
  * @param userIdx
  * @param storyIdx
+ * @desc 스토리 차단 여부
+ */
+const isBlockedStory = async (userIdx: number, storyIdx: number): Promise<boolean> => {
+  try {
+    const { userIdx: storyUserIdx } = await Story.createQueryBuilder()
+      .select('userIdx')
+      .where('storyIdx = :storyIdx', { storyIdx })
+      .getRawOne();
+
+    const isBlocked = await Block.createQueryBuilder()
+      .select()
+      .where('userIdx = :userIdx', { userIdx })
+      .andWhere('blockedUserIdx = :blockedUserIdx', { blockedUserIdx: storyUserIdx })
+      .getRawOne();
+
+    return isBlocked ? true : false;
+  } catch (err: any) {
+    throw new CustomError(
+      httpStatusCode.INTERAL_SERVER_ERROR,
+      ErrorType.INTERAL_SERVER_ERROR.message,
+      ErrorType.INTERAL_SERVER_ERROR.code,
+      []
+    );
+  }
+};
+
+/**
+ *
+ * @param userIdx
+ * @param storyIdx
  * @desc 스토리 좋아요 변경
  */
 const changeStoryLike = async (userIdx: number, storyIdx: number): Promise<LikeResult> => {
@@ -702,8 +732,6 @@ const blockStoryUser = async (userIdx: number, storyIdx: number) => {
   }
 };
 
-const isBlockedStory = async (userIdx: number, storyIdx: number) => {};
-
 export default {
   createStory,
   getStories,
@@ -716,7 +744,5 @@ export default {
   canReportStory,
   reportStory,
   changeStoryLike,
-  canBlockStory,
-  blockStoryUser,
   isBlockedStory
 };
