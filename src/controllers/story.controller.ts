@@ -1,4 +1,3 @@
-import { LikeResult } from '@interfaces/common/response';
 import { Request, Response } from 'express';
 import { storyService } from '@services/index';
 import httpStatusCode from '@utils/httpStatusCode';
@@ -37,7 +36,7 @@ const getStories = async (req: Request, res: Response) => {
 
   try {
     const result = await storyService.getStories(userIdx, sort, cursor);
-    const meta = await storyService.getStoriesMeta(cursor);
+    const meta = await storyService.getStoriesMeta(userIdx, cursor);
     return res.status(httpStatusCode.OK).json(successResWithMeta(result, meta));
   } catch (err: any) {
     return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
@@ -55,6 +54,9 @@ const getStory = async (req: Request, res: Response) => {
 
   try {
     await storyService.isExistStory(storyIdx);
+    if (userIdx) {
+      await storyService.isBlockedStory(userIdx, storyIdx);
+    }
     const result = await storyService.getStory(userIdx, storyIdx);
     return res.status(httpStatusCode.OK).json(successRes(result));
   } catch (err: any) {

@@ -99,72 +99,92 @@ const getStories = async (
   sort: string,
   cursor: string | undefined
 ): Promise<GetStoryDTO[]> => {
-  let query = Story.createQueryBuilder('story')
-    .select([
-      'story.storyIdx AS storyIdx',
-      'story.title AS title',
-      'user.userIdx AS userIdx',
-      'user.nickname AS nickname'
-    ])
-    .leftJoin('story.user', 'user')
-    .leftJoin(
-      qb =>
-        qb
-          .select('storyIdx', 'storyIdx')
-          .addSelect('COUNT(*)', 'likeCnt')
-          .from(StoryLike, 'storyLike')
-          .groupBy('storyLike.storyIdx'),
-      'getCnt',
-      'getCnt.storyIdx = story.storyIdx'
-    )
-    .addSelect('IFNULL(getCnt.likeCnt, 0)', 'likeCnt');
+  try {
+    const blocked = await Block.createQueryBuilder()
+      .select('blockedUserIdx')
+      .where('userIdx = :userIdx', { userIdx })
+      .getRawMany();
 
-  //정렬 처리
-  if (sort === sortTypes.POPULAR) {
-    query = query.orderBy('likeCnt', 'DESC').addOrderBy('story.storyIdx', 'DESC');
-  } else if (sort === sortTypes.RECENTLY) {
-    query = query.orderBy('story.storyIdx', 'DESC');
-  }
+    let blockedUserIdxs = blocked.map(item => item.blockedUserIdx);
+    if (blockedUserIdxs.length === 0) {
+      blockedUserIdxs = [-1];
+    }
 
-  //페이지네이션 처리
-  if (cursor) {
-    query = query.offset(parseInt(cursor));
-  }
+    let query = Story.createQueryBuilder('story')
+      .select([
+        'story.storyIdx AS storyIdx',
+        'story.title AS title',
+        'user.userIdx AS userIdx',
+        'user.nickname AS nickname'
+      ])
+      .leftJoin('story.user', 'user')
+      .leftJoin(
+        qb =>
+          qb
+            .select('storyIdx', 'storyIdx')
+            .addSelect('COUNT(*)', 'likeCnt')
+            .from(StoryLike, 'storyLike')
+            .groupBy('storyLike.storyIdx'),
+        'getCnt',
+        'getCnt.storyIdx = story.storyIdx'
+      )
+      .addSelect('IFNULL(getCnt.likeCnt, 0)', 'likeCnt')
+      .where('story.userIdx NOT IN (:...blockedUserIdxs)', { blockedUserIdxs });
 
-  const stories = await query.limit(itemsPerPage.GET_ALL_STORY).getRawMany();
+    //정렬 처리
+    if (sort === sortTypes.POPULAR) {
+      query = query.orderBy('likeCnt', 'DESC').addOrderBy('story.storyIdx', 'DESC');
+    } else if (sort === sortTypes.RECENTLY) {
+      query = query.orderBy('story.storyIdx', 'DESC');
+    }
 
-  for (let i = 0; i < stories.length; i++) {
-    const { storyIdx } = stories[i];
+    //페이지네이션 처리
+    if (cursor) {
+      query = query.offset(parseInt(cursor));
+    }
 
-    stories[i].likeCnt = parseInt(stories[i].likeCnt);
-    stories[i].user = {
-      userIdx: stories[i].userIdx,
-      nickname: stories[i].nickname
-    };
-    delete stories[i].userIdx;
-    delete stories[i].nickname;
+    const stories = await query.limit(itemsPerPage.GET_ALL_STORY).getRawMany();
 
-    const thumbnail = await StoryImage.createQueryBuilder('storyImage')
-      .select(['storyImage.url'])
-      .where('storyImage.storyIdx = :storyIdx', { storyIdx })
-      .getOne();
+    for (let i = 0; i < stories.length; i++) {
+      const { storyIdx } = stories[i];
 
-    stories[i].thumbnail = thumbnail!.url;
+      stories[i].likeCnt = parseInt(stories[i].likeCnt);
+      stories[i].user = {
+        userIdx: stories[i].userIdx,
+        nickname: stories[i].nickname
+      };
+      delete stories[i].userIdx;
+      delete stories[i].nickname;
 
-    if (userIdx) {
-      const isLiked = await StoryLike.createQueryBuilder('storyLike')
-        .select()
-        .where('storyLike.userIdx = :userIdx', { userIdx })
-        .andWhere('storyLike.storyIdx = :storyIdx', { storyIdx })
+      const thumbnail = await StoryImage.createQueryBuilder('storyImage')
+        .select(['storyImage.url'])
+        .where('storyImage.storyIdx = :storyIdx', { storyIdx })
         .getOne();
 
-      isLiked ? (stories[i].isLiked = true) : (stories[i].isLiked = false);
-    } else {
-      stories[i].isLiked = false;
-    }
-  }
+      stories[i].thumbnail = thumbnail!.url;
 
-  return stories;
+      if (userIdx) {
+        const isLiked = await StoryLike.createQueryBuilder('storyLike')
+          .select()
+          .where('storyLike.userIdx = :userIdx', { userIdx })
+          .andWhere('storyLike.storyIdx = :storyIdx', { storyIdx })
+          .getOne();
+
+        isLiked ? (stories[i].isLiked = true) : (stories[i].isLiked = false);
+      } else {
+        stories[i].isLiked = false;
+      }
+    }
+
+    return stories;
+  } catch (err: any) {
+    throw new CustomError(
+      httpStatusCode.INTERAL_SERVER_ERROR,
+      ErrorType.INTERAL_SERVER_ERROR.message,
+      ErrorType.INTERAL_SERVER_ERROR.code,
+      []
+    );
+  }
 };
 
 /**
@@ -172,30 +192,57 @@ const getStories = async (
  * @param cursor
  * @desc 스토리 관련 meta data
  */
-const getStoriesMeta = async (cursor: string | undefined) => {
-  let query = Story.createQueryBuilder().take(itemsPerPage.GET_ALL_STORY);
-  if (cursor) {
-    query = query.skip(parseInt(cursor) + itemsPerPage.GET_ALL_STORY);
+const getStoriesMeta = async (userIdx: number | undefined, cursor: string | undefined) => {
+  try {
+    const blocked = await Block.createQueryBuilder()
+      .select('blockedUserIdx')
+      .where('userIdx = :userIdx', { userIdx })
+      .getRawMany();
+
+    let blockedUserIdxs = blocked.map(item => item.blockedUserIdx);
+    if (blockedUserIdxs.length === 0) {
+      blockedUserIdxs = [-1];
+    }
+
+    let query = Story.createQueryBuilder()
+      .where('userIdx NOT IN (:...blockedUserIdxs)', {
+        blockedUserIdxs
+      })
+      .take(itemsPerPage.GET_ALL_STORY);
+    if (cursor) {
+      query = query.skip(parseInt(cursor) + itemsPerPage.GET_ALL_STORY);
+    }
+
+    const nextStory = await query.getOne();
+
+    let nextCursor = null;
+    if (nextStory) {
+      nextCursor = cursor
+        ? String(parseInt(cursor) + itemsPerPage.GET_ALL_STORY)
+        : String(itemsPerPage.GET_ALL_STORY);
+    }
+
+    const totalStoryCnt = await Story.createQueryBuilder('story')
+      .select()
+      .where('userIdx NOT IN (:...blockedUserIdxs)', {
+        blockedUserIdxs
+      })
+      .getCount();
+
+    const meta = {
+      count: totalStoryCnt,
+      nextCursor
+    };
+
+    return meta;
+  } catch (err: any) {
+    throw new CustomError(
+      httpStatusCode.INTERAL_SERVER_ERROR,
+      ErrorType.INTERAL_SERVER_ERROR.message,
+      ErrorType.INTERAL_SERVER_ERROR.code,
+      []
+    );
   }
-  const nextStory = await query.getOne();
-
-  const haveNextCursor = nextStory ? true : false;
-
-  let nextCursor = null;
-  if (haveNextCursor) {
-    nextCursor = cursor
-      ? String(parseInt(cursor) + itemsPerPage.GET_ALL_STORY)
-      : String(itemsPerPage.GET_ALL_STORY);
-  }
-
-  const totalStoryCnt = await Story.createQueryBuilder('story').select().getCount();
-
-  const meta = {
-    count: totalStoryCnt,
-    nextCursor
-  };
-
-  return meta;
 };
 
 /**
@@ -655,6 +702,8 @@ const blockStoryUser = async (userIdx: number, storyIdx: number) => {
   }
 };
 
+const isBlockedStory = async (userIdx: number, storyIdx: number) => {};
+
 export default {
   createStory,
   getStories,
@@ -668,5 +717,6 @@ export default {
   reportStory,
   changeStoryLike,
   canBlockStory,
-  blockStoryUser
+  blockStoryUser,
+  isBlockedStory
 };
