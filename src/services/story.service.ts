@@ -635,63 +635,22 @@ const changeStoryLike = async (userIdx: number, storyIdx: number): Promise<LikeR
  *
  * @param userIdx
  * @param storyIdx
- * @desc 스토리 차단 가능한지
+ * @desc 스토리 차단 여부
  */
-const canBlockStory = async (userIdx: number, storyIdx: number) => {
-  const { userIdx: storyUserIdx } = await Story.createQueryBuilder()
-    .select('userIdx')
-    .where('storyIdx = :storyIdx', { storyIdx })
-    .getRawOne();
-
-  if (storyUserIdx === userIdx) {
-    throw new CustomError(
-      httpStatusCode.BAD_REQUEST,
-      ErrorType.CAN_NOT_BLOCK_SELF.message,
-      ErrorType.CAN_NOT_BLOCK_SELF.code,
-      []
-    );
-  }
-
-  const isBlocked = await Block.createQueryBuilder()
-    .select()
-    .where('userIdx = :userIdx', { userIdx })
-    .andWhere('blockedUserIdx = :storyUserIdx', { storyUserIdx })
-    .getOne();
-
-  if (isBlocked) {
-    throw new CustomError(
-      httpStatusCode.BAD_REQUEST,
-      ErrorType.ALREADY_BLOCK.message,
-      ErrorType.ALREADY_BLOCK.code,
-      []
-    );
-  }
-};
-
-/**
- *
- * @param userIdx
- * @param storyIdx
- * @desc 스토리 사용자 차단
- */
-const blockStoryUser = async (userIdx: number, storyIdx: number) => {
+const isBlockedStory = async (userIdx: number, storyIdx: number): Promise<boolean> => {
   try {
     const { userIdx: storyUserIdx } = await Story.createQueryBuilder()
       .select('userIdx')
       .where('storyIdx = :storyIdx', { storyIdx })
       .getRawOne();
 
-    await AppDataSource.manager.transaction(async transactionalEntityManager => {
-      await transactionalEntityManager
-        .createQueryBuilder()
-        .insert()
-        .into(Block)
-        .values({
-          userIdx,
-          blockedUserIdx: storyUserIdx
-        })
-        .execute();
-    });
+    const isBlocked = await Block.createQueryBuilder()
+      .select()
+      .where('userIdx = :userIdx', { userIdx })
+      .andWhere('blockedUserIdx = :blockedUserIdx', { blockedUserIdx: storyUserIdx })
+      .getRawOne();
+
+    return isBlocked ? true : false;
   } catch (err: any) {
     throw new CustomError(
       httpStatusCode.INTERAL_SERVER_ERROR,
@@ -701,8 +660,6 @@ const blockStoryUser = async (userIdx: number, storyIdx: number) => {
     );
   }
 };
-
-const isBlockedStory = async (userIdx: number, storyIdx: number) => {};
 
 export default {
   createStory,
@@ -716,7 +673,5 @@ export default {
   canReportStory,
   reportStory,
   changeStoryLike,
-  canBlockStory,
-  blockStoryUser,
   isBlockedStory
 };

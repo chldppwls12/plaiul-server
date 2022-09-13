@@ -46,6 +46,7 @@ const ErrorType = {
   //3110 차단 관련
   ALREADY_BLOCK: { code: 3110, message: '기존에 차단함' },
   CAN_NOT_BLOCK_SELF: { code: 3111, message: '자신의 글 차단 불가' },
+  BLOCKED_USER_STORY: { code: 3112, message: '차단한 유저의 storyIdx' },
 
   //5000 SERVER
   INTERAL_SERVER_ERROR: { code: 5000, message: '서버 에러' }
