@@ -120,4 +120,16 @@ router.patch(
   storyController.updateStoryComment
 );
 
+router.delete(
+  '/:storyIdx/comments/:commentIdx',
+  [
+    header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
+    param('storyIdx').exists({ checkFalsy: true }),
+    param('commentIdx').exists({ checkFalsy: true })
+  ],
+  validator,
+  authJwt,
+  storyController.deleteStoryComment
+);
+
 export default router;

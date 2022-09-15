@@ -209,6 +209,28 @@ const updateStoryComment = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ *
+ * @routes DELETE /api/stories/:storyIdx/comments/:commentIdx
+ * @desc 스토리 댓글 삭제
+ */
+const deleteStoryComment = async (req: Request, res: Response) => {
+  const storyIdx = parseInt(req.params.storyIdx);
+  const storyCommentIdx = parseInt(req.params.commentIdx);
+  const userIdx = req.userIdx as number;
+
+  try {
+    await storyService.isExistStory(storyIdx);
+    await storyService.isExistStoryCommentIdx(storyIdx, storyCommentIdx);
+    await storyService.isUserStoryComment(userIdx, storyCommentIdx);
+    await storyService.deleteStoryComment(storyCommentIdx);
+
+    return res.status(httpStatusCode.OK).json(successRes({ deleted: true }));
+  } catch (err: any) {
+    return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+  }
+};
+
 export default {
   createStory,
   getStories,
@@ -218,5 +240,6 @@ export default {
   reportStory,
   changeStoryLike,
   createStoryComment,
-  updateStoryComment
+  updateStoryComment,
+  deleteStoryComment
 };

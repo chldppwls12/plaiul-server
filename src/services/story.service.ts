@@ -802,6 +802,31 @@ const updateStoryComment = async (storyCommentIdx: number, comment: string) => {
   }
 };
 
+/**
+ *
+ * @param storyCommentIdx
+ * @desc 스토리 댓글 삭제
+ */
+const deleteStoryComment = async (storyCommentIdx: number) => {
+  try {
+    await AppDataSource.manager.transaction(async transactionalEntityManager => {
+      await transactionalEntityManager
+        .createQueryBuilder()
+        .softDelete()
+        .from(StoryComment)
+        .where('storyCommentIdx = :storyCommentIdx', { storyCommentIdx })
+        .execute();
+    });
+  } catch (err: any) {
+    throw new CustomError(
+      httpStatusCode.INTERAL_SERVER_ERROR,
+      ErrorType.INTERAL_SERVER_ERROR.message,
+      ErrorType.INTERAL_SERVER_ERROR.code,
+      []
+    );
+  }
+};
+
 export default {
   createStory,
   getStories,
@@ -819,5 +844,6 @@ export default {
   createStoryComment,
   isExistStoryCommentIdx,
   isUserStoryComment,
-  updateStoryComment
+  updateStoryComment,
+  deleteStoryComment
 };
