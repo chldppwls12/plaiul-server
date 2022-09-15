@@ -186,6 +186,29 @@ const createStoryComment = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ *
+ * @routes PATCH /api/stories/:storyIdx/comments/:commentIdx
+ * @desc 스토리 댓글 수정
+ */
+const updateStoryComment = async (req: Request, res: Response) => {
+  const storyIdx = parseInt(req.params.storyIdx);
+  const storyCommentIdx = parseInt(req.params.commentIdx);
+  const userIdx = req.userIdx as number;
+  const { content: comment } = req.body;
+
+  try {
+    await storyService.isExistStory(storyIdx);
+    await storyService.isExistStoryCommentIdx(storyIdx, storyCommentIdx);
+    await storyService.isUserStoryComment(userIdx, storyCommentIdx);
+    await storyService.updateStoryComment(storyCommentIdx, comment);
+
+    return res.status(httpStatusCode.OK).json(successRes({ modified: true }));
+  } catch (err: any) {
+    return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+  }
+};
+
 export default {
   createStory,
   getStories,
@@ -194,5 +217,6 @@ export default {
   deleteStory,
   reportStory,
   changeStoryLike,
-  createStoryComment
+  createStoryComment,
+  updateStoryComment
 };

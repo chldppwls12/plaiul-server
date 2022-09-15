@@ -730,6 +730,78 @@ const createStoryComment = async (
   }
 };
 
+/**
+ *
+ * @param storyIdx
+ * @param storyCommentIdx
+ * @desc 존재하는 스토리 댓글인지
+ */
+const isExistStoryCommentIdx = async (storyIdx: number, storyCommentIdx: number) => {
+  try {
+    await StoryComment.createQueryBuilder()
+      .select()
+      .where('storyCommentIdx = :storyCommentIdx', { storyCommentIdx })
+      .andWhere('storyIdx = :storyIdx', { storyIdx })
+      .getOneOrFail();
+  } catch (err: any) {
+    throw new CustomError(
+      httpStatusCode.BAD_REQUEST,
+      ErrorType.INVALID_COMMENTIDX.message,
+      ErrorType.INVALID_COMMENTIDX.code,
+      []
+    );
+  }
+};
+
+/**
+ *
+ * @param userIdx
+ * @param storyCommentIdx
+ * @desc 유저의 스토리 댓글인지
+ */
+const isUserStoryComment = async (userIdx: number, storyCommentIdx: number) => {
+  try {
+    await StoryComment.createQueryBuilder()
+      .select()
+      .where('storyCommentIdx = :storyCommentIdx', { storyCommentIdx })
+      .andWhere('userIdx = :userIdx', { userIdx })
+      .getOneOrFail();
+  } catch (err: any) {
+    throw new CustomError(
+      httpStatusCode.UNAUTHORIZED,
+      ErrorType.UNAUTHORIZED.message,
+      ErrorType.UNAUTHORIZED.code,
+      []
+    );
+  }
+};
+
+/**
+ *
+ * @param storyCommentIdx
+ * @param comment
+ * @desc 스토리 댓글 수정
+ */
+const updateStoryComment = async (storyCommentIdx: number, comment: string) => {
+  try {
+    await AppDataSource.manager.transaction(async transactionalEntityManager => {
+      await transactionalEntityManager
+        .createQueryBuilder()
+        .update(StoryComment)
+        .set({ comment })
+        .where('storyCommentIdx = :storyCommentIdx', { storyCommentIdx })
+        .execute();
+    });
+  } catch (err: any) {
+    throw new CustomError(
+      httpStatusCode.INTERAL_SERVER_ERROR,
+      ErrorType.INTERAL_SERVER_ERROR.message,
+      ErrorType.INTERAL_SERVER_ERROR.code,
+      []
+    );
+  }
+};
+
 export default {
   createStory,
   getStories,
@@ -744,5 +816,8 @@ export default {
   changeStoryLike,
   isBlockedStory,
   canCreateStoryComment,
-  createStoryComment
+  createStoryComment,
+  isExistStoryCommentIdx,
+  isUserStoryComment,
+  updateStoryComment
 };

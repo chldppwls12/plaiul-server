@@ -107,4 +107,17 @@ router.post(
   storyController.createStoryComment
 );
 
+router.patch(
+  '/:storyIdx/comments/:commentIdx',
+  [
+    header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
+    param('storyIdx').exists({ checkFalsy: true }),
+    param('commentIdx').exists({ checkFalsy: true }),
+    body('content').exists({ checkFalsy: true })
+  ],
+  validator,
+  authJwt,
+  storyController.updateStoryComment
+);
+
 export default router;
