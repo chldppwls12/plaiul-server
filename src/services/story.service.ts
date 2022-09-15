@@ -663,36 +663,23 @@ const changeStoryLike = async (userIdx: number, storyIdx: number): Promise<LikeR
 
 /**
  *
- * @param userIdx
  * @param storyIdx
- * @desc 스토리 차단 가능한지
+ * @param parentCommentIdx
+ * @desc 스토리 댓글 작성 가능 여부
  */
-const canBlockStory = async (userIdx: number, storyIdx: number) => {
-  const { userIdx: storyUserIdx } = await Story.createQueryBuilder()
-    .select('userIdx')
-    .where('storyIdx = :storyIdx', { storyIdx })
-    .getRawOne();
-
-  if (storyUserIdx === userIdx) {
+const canCreateStoryComment = async (storyIdx: number, parentCommentIdx: number | undefined) => {
+  try {
+    await StoryComment.createQueryBuilder()
+      .where('storyCommentIdx = :storyCommentIdx', {
+        storyCommentIdx: parentCommentIdx
+      })
+      .andWhere('storyIdx = :storyIdx', { storyIdx })
+      .getOneOrFail();
+  } catch (err: any) {
     throw new CustomError(
       httpStatusCode.BAD_REQUEST,
-      ErrorType.CAN_NOT_BLOCK_SELF.message,
-      ErrorType.CAN_NOT_BLOCK_SELF.code,
-      []
-    );
-  }
-
-  const isBlocked = await Block.createQueryBuilder()
-    .select()
-    .where('userIdx = :userIdx', { userIdx })
-    .andWhere('blockedUserIdx = :storyUserIdx', { storyUserIdx })
-    .getOne();
-
-  if (isBlocked) {
-    throw new CustomError(
-      httpStatusCode.BAD_REQUEST,
-      ErrorType.ALREADY_BLOCK.message,
-      ErrorType.ALREADY_BLOCK.code,
+      ErrorType.INVALID_PARENTCOMMENTIDX.message,
+      ErrorType.INVALID_PARENTCOMMENTIDX.code,
       []
     );
   }
@@ -702,26 +689,37 @@ const canBlockStory = async (userIdx: number, storyIdx: number) => {
  *
  * @param userIdx
  * @param storyIdx
- * @desc 스토리 사용자 차단
+ * @param parentCommentIdx
+ * @param comment
+ * @desc 스토리 댓글 작성
  */
-const blockStoryUser = async (userIdx: number, storyIdx: number) => {
+const createStoryComment = async (
+  userIdx: number,
+  storyIdx: number,
+  parentCommentIdx: number | undefined,
+  comment: string
+) => {
   try {
-    const { userIdx: storyUserIdx } = await Story.createQueryBuilder()
-      .select('userIdx')
-      .where('storyIdx = :storyIdx', { storyIdx })
-      .getRawOne();
-
+    let commentIdx;
     await AppDataSource.manager.transaction(async transactionalEntityManager => {
-      await transactionalEntityManager
+      const storyComment = await transactionalEntityManager
         .createQueryBuilder()
         .insert()
-        .into(Block)
+        .into(StoryComment)
         .values({
           userIdx,
-          blockedUserIdx: storyUserIdx
+          storyIdx,
+          parentCommentIdx,
+          comment
         })
         .execute();
+
+      commentIdx = storyComment.identifiers[0].storyCommentIdx;
     });
+
+    return {
+      commentIdx
+    };
   } catch (err: any) {
     throw new CustomError(
       httpStatusCode.INTERAL_SERVER_ERROR,
@@ -744,5 +742,7 @@ export default {
   canReportStory,
   reportStory,
   changeStoryLike,
-  isBlockedStory
+  isBlockedStory,
+  canCreateStoryComment,
+  createStoryComment
 };

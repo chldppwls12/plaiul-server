@@ -9,7 +9,7 @@ import {
   ManyToOne,
   JoinColumn
 } from 'typeorm';
-import { Story } from '@entities/index';
+import { Story, User } from '@entities/index';
 
 @Entity()
 export class StoryComment extends BaseEntity {
@@ -25,6 +25,20 @@ export class StoryComment extends BaseEntity {
 
   @Column()
   storyIdx: number;
+
+  @ManyToOne(() => User, user => user.storyComments)
+  @JoinColumn({ name: 'userIdx' })
+  user: User;
+
+  @Column()
+  userIdx: number;
+
+  @ManyToOne(() => StoryComment, { nullable: true })
+  @JoinColumn({ name: 'parentCommentIdx' })
+  parentComment: StoryComment;
+
+  @Column({ type: 'number', nullable: true })
+  parentCommentIdx: number;
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
