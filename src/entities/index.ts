@@ -13,3 +13,4 @@ export { Tip } from './tip/Tip';
 export { TipImage } from './tip/Image';
 export { TipText } from './tip/Text';
 export { Block } from './user/Block';
+export { CommentReqReport } from './community/CommentReqReport';

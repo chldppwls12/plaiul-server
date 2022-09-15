@@ -6,7 +6,8 @@ import {
   StoryLike,
   StoryComment,
   StoryReqReport,
-  Block
+  Block,
+  CommentReqReport
 } from '@entities/index';
 import AppDataSource from '@config/data-source';
 import { CustomError } from '@utils/error';
@@ -14,8 +15,8 @@ import httpStatusCode from '@utils/httpStatusCode';
 import { ErrorType } from '@utils/error';
 import { createStoryResult } from '@interfaces/story';
 import { GetStoryDTO } from '@interfaces/story';
-import { itemsPerPage, reportType, sortTypes } from '@utils/constants';
-import { ReportReason } from '@entities/common/Enums';
+import { itemsPerPage, sortTypes } from '@utils/constants';
+import { getReportReason } from '@utils/reason';
 
 /**
  *
@@ -532,31 +533,7 @@ const reportStory = async (
   etcReason: string | undefined
 ) => {
   try {
-    let reason: ReportReason;
-    switch (reasonIdx) {
-      case reportType.CURSE:
-        reason = ReportReason.CURSE;
-        break;
-      case reportType.PROMOTE:
-        reason = ReportReason.PROMOTE;
-        break;
-      case reportType.ILLEGALITY:
-        reason = ReportReason.ILLEGALITY;
-        break;
-      case reportType.OBSCENCE:
-        reason = ReportReason.OBSCENCE;
-        break;
-      case reportType.LEAKAGE:
-        reason = ReportReason.LEAKAGE;
-        break;
-      case reportType.SPAM:
-        reason = ReportReason.SPAM;
-        break;
-      case reportType.ETC:
-        reason = ReportReason.ETC;
-        break;
-    }
-
+    const reason = getReportReason(reasonIdx);
     await AppDataSource.manager.transaction(async transactionalEntityManager => {
       transactionalEntityManager
         .createQueryBuilder()
@@ -827,6 +804,69 @@ const deleteStoryComment = async (storyCommentIdx: number) => {
   }
 };
 
+/**
+ *
+ * @param userIdx
+ * @param storyCommentIdx
+ * @desc 스토리 댓글 기존 신고 체크
+ */
+const canReportStoryComment = async (userIdx: number, storyCommentIdx: number) => {
+  const isReported = await CommentReqReport.createQueryBuilder()
+    .select()
+    .where('storyCommentIdx = :storyCommentIdx', { storyCommentIdx })
+    .andWhere('userIdx = :userIdx', { userIdx })
+    .getOne();
+
+  if (isReported) {
+    throw new CustomError(
+      httpStatusCode.BAD_REQUEST,
+      ErrorType.ALREADY_REPORT.message,
+      ErrorType.ALREADY_REPORT.code,
+      []
+    );
+  }
+};
+
+/**
+ *
+ * @param userIdx
+ * @param storyCommentIdx
+ * @param reasonIdx
+ * @param etcReason
+ * @desc 스토리 댓글 신고
+ */
+const reportStoryComment = async (
+  userIdx: number,
+  storyCommentIdx: number,
+  reasonIdx: number,
+  etcReason: string | undefined
+) => {
+  const reason = getReportReason(reasonIdx);
+  try {
+    await AppDataSource.manager.transaction(async transactionalEntityManager => {
+      await transactionalEntityManager
+        .createQueryBuilder()
+        .insert()
+        .into(CommentReqReport)
+        .values({
+          userIdx,
+          storyCommentIdx,
+          reason,
+          etcReason
+        })
+        .execute();
+    });
+  } catch (err: any) {
+    console.log(err);
+    throw new CustomError(
+      httpStatusCode.INTERAL_SERVER_ERROR,
+      ErrorType.INTERAL_SERVER_ERROR.message,
+      ErrorType.INTERAL_SERVER_ERROR.code,
+      []
+    );
+  }
+};
+
 export default {
   createStory,
   getStories,
@@ -845,5 +885,7 @@ export default {
   isExistStoryCommentIdx,
   isUserStoryComment,
   updateStoryComment,
-  deleteStoryComment
+  deleteStoryComment,
+  canReportStoryComment,
+  reportStoryComment
 };

@@ -17,7 +17,8 @@ import {
   QnaReqReport,
   Tip,
   Block,
-  StoryComment
+  StoryComment,
+  CommentReqReport
 } from '@entities/index';
 import { LoginType } from './../common/Enums';
 
@@ -67,6 +68,9 @@ export class User extends BaseEntity {
 
   @OneToMany(() => QnaLike, qnaLike => qnaLike.user)
   qnaLikes!: QnaLike[];
+
+  @OneToMany(() => CommentReqReport, commentReqReport => commentReqReport.user)
+  commentReqReports?: CommentReqReport[];
 
   @OneToMany(() => Tip, tip => tip.user)
   tips!: Tip[];

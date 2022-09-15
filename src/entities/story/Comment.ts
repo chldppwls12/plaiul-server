@@ -7,9 +7,10 @@ import {
   UpdateDateColumn,
   DeleteDateColumn,
   ManyToOne,
-  JoinColumn
+  JoinColumn,
+  OneToMany
 } from 'typeorm';
-import { Story, User } from '@entities/index';
+import { Story, User, CommentReqReport } from '@entities/index';
 
 @Entity()
 export class StoryComment extends BaseEntity {
@@ -39,6 +40,9 @@ export class StoryComment extends BaseEntity {
 
   @Column({ type: 'number', nullable: true })
   parentCommentIdx: number;
+
+  @OneToMany(() => CommentReqReport, commentReqReport => commentReqReport.storyComment)
+  commentReqReports?: CommentReqReport[];
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
