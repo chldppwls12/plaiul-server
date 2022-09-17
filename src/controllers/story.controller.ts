@@ -254,6 +254,26 @@ const reportStoryComment = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ *
+ * @routes GET /api/stories/:storyIdx/comments
+ * @desc 스토리 댓글 조회
+ */
+const getStoryComments = async (req: Request, res: Response) => {
+  const storyIdx = parseInt(req.params.storyIdx);
+  const userIdx = req.userIdx as number;
+  const cursor = req.query?.cursor as string;
+
+  try {
+    await storyService.isExistStory(storyIdx);
+    const result = await storyService.getStoryComments(userIdx, storyIdx, cursor);
+    const meta = await storyService.getStoryCommentsMeta(storyIdx, cursor);
+    return res.status(httpStatusCode.OK).json(successResWithMeta(result, meta));
+  } catch (err: any) {
+    return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+  }
+};
+
 export default {
   createStory,
   getStories,
@@ -265,5 +285,6 @@ export default {
   createStoryComment,
   updateStoryComment,
   deleteStoryComment,
-  reportStoryComment
+  reportStoryComment,
+  getStoryComments
 };

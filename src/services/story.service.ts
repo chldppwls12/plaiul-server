@@ -867,6 +867,178 @@ const reportStoryComment = async (
   }
 };
 
+/**
+ *
+ * @param userIdx
+ * @param storyIdx
+ * @desc 스토리 댓글 조회
+ */
+const getStoryComments = async (
+  userIdx: number | undefined,
+  storyIdx: number,
+  cursor: string | undefined
+) => {
+  let result: any = [];
+  try {
+    const { userIdx: storyUserIdx } = await Story.createQueryBuilder()
+      .select('userIdx')
+      .where('storyIdx = :storyIdx', { storyIdx })
+      .getRawOne();
+
+    const blocked = await Block.createQueryBuilder()
+      .select('blockedUserIdx')
+      .where('userIdx = :userIdx', { userIdx })
+      .getRawMany();
+
+    let blockedUserIdxs = blocked.map(item => item.blockedUserIdx);
+    if (blockedUserIdxs.length === 0) {
+      blockedUserIdxs = [-1];
+    }
+
+    let query = StoryComment.createQueryBuilder('storyComment')
+      .select([
+        'storyComment.storyCommentIdx AS commentIdx',
+        'storyComment.comment AS content',
+        'storyComment.createdAt AS createdAt',
+        'user.userIdx AS userIdx',
+        'user.nickname AS nickname',
+        'user.profile AS profile',
+        'storyComment.deletedAt'
+      ])
+      .leftJoin('storyComment.user', 'user')
+      .leftJoin(
+        qb =>
+          qb
+            .select('parentCommentIdx', 'parentCommentIdx')
+            .addSelect('COUNT(*)', 'recommentCnt')
+            .from(StoryComment, 'storyRecomment')
+            .groupBy('storyRecomment.parentCommentIdx'),
+        'getStoryRecomment',
+        'getStoryRecomment.parentCommentIdx = storyComment.storyCommentIdx'
+      )
+      .where(() => 'storyComment.parentCommentIdx IS NULL')
+      .addSelect('IFNULL(recommentCnt, 0)', 'recommentCnt')
+      .andWhere(
+        'storyComment.deletedAt IS NULL OR (storyComment.deletedAt IS NOT NULL AND recommentCnt > 0)'
+      )
+      .andWhere('storyComment.storyIdx = :storyIdx', { storyIdx })
+      .withDeleted();
+
+    //페이지네이션 처리
+    if (cursor) {
+      query = query.offset(parseInt(cursor));
+    }
+
+    const parentComments = await query.limit(itemsPerPage.GET_STORY_COMMENT).getRawMany();
+
+    for (let parentComment of parentComments) {
+      const { commentIdx: storyCommentIdx } = parentComment;
+      const reComments = await StoryComment.createQueryBuilder('storyRecomment')
+        .select([
+          'storyRecomment.storyCommentIdx AS commentIdx',
+          'storyRecomment.comment AS content',
+          'storyRecomment.createdAt AS createdAt',
+          'user.userIdx AS userIdx',
+          'user.nickname AS nickname',
+          'user.profile AS profile'
+        ])
+        .leftJoin('storyRecomment.user', 'user')
+        .where('storyRecomment.parentCommentIdx = :storyCommentIdx', { storyCommentIdx })
+        .getRawMany();
+
+      let reCommentsResult = [];
+      for (let reComment of reComments) {
+        reCommentsResult.push({
+          commentIdx: reComment.commentIdx,
+          content: reComment.content,
+          createdAt: reComment.createdAt,
+          isWriter: reComment.userIdx === storyUserIdx ? true : false,
+          isUserComment: reComment.userIdx === userIdx ? true : false,
+          isDeleted: false,
+          isBlocked: blockedUserIdxs.includes(reComment.userIdx),
+          user: {
+            userIdx: reComment.userIdx,
+            nickname: reComment.nickname,
+            profile: reComment.profile === '' ? null : reComment.profile
+          }
+        });
+      }
+
+      result.push({
+        commentIdx: parentComment.commentIdx,
+        content: parentComment.content,
+        createdAt: parentComment.createdAt,
+        isWriter: parentComment.userIdx === storyUserIdx ? true : false,
+        isUserComment: parentComment.userIdx === userIdx ? true : false,
+        isDeleted: parentComment.deletedAt ? true : false,
+        isBlocked: blockedUserIdxs.includes(parentComment.userIdx),
+        user: {
+          userIdx: parentComment.userIdx,
+          nickname: parentComment.nickname,
+          profile: parentComment.profile === '' ? null : parentComment.profile
+        },
+        reComments: reCommentsResult
+      });
+    }
+
+    return result;
+  } catch (err: any) {
+    throw new CustomError(
+      httpStatusCode.INTERAL_SERVER_ERROR,
+      ErrorType.INTERAL_SERVER_ERROR.message,
+      ErrorType.INTERAL_SERVER_ERROR.code,
+      []
+    );
+  }
+};
+
+/**
+ *
+ * @param storyIdx
+ * @param cursor
+ * @desc 스토리 댓글 meta
+ */
+const getStoryCommentsMeta = async (storyIdx: number, cursor: string | undefined) => {
+  let query = StoryComment.createQueryBuilder('storyComment')
+    .select()
+    .leftJoin('storyComment.user', 'user')
+    .leftJoin(
+      qb =>
+        qb
+          .select('parentCommentIdx', 'parentCommentIdx')
+          .addSelect('COUNT(*)', 'recommentCnt')
+          .from(StoryComment, 'storyRecomment')
+          .groupBy('storyRecomment.parentCommentIdx'),
+      'getStoryRecomment',
+      'getStoryRecomment.parentCommentIdx = storyComment.storyCommentIdx'
+    )
+    .where(() => 'storyComment.parentCommentIdx IS NULL')
+    .addSelect('IFNULL(recommentCnt, 0)', 'recommentCnt')
+    .andWhere(
+      'storyComment.deletedAt IS NULL OR (storyComment.deletedAt IS NOT NULL AND recommentCnt > 0)'
+    )
+    .andWhere('storyComment.storyIdx = :storyIdx', { storyIdx })
+    .withDeleted()
+    .take(itemsPerPage.GET_STORY_COMMENT);
+
+  if (!cursor) {
+    query = query.skip(itemsPerPage.GET_STORY_COMMENT);
+  } else {
+    query = query.skip(parseInt(cursor) + itemsPerPage.GET_STORY_COMMENT);
+  }
+
+  const nextStoryComment = await query.getOne();
+
+  let nextCursor = null;
+  if (nextStoryComment) {
+    nextCursor = cursor
+      ? String(parseInt(cursor) + itemsPerPage.GET_STORY_COMMENT)
+      : String(itemsPerPage.GET_STORY_COMMENT);
+  }
+
+  return { nextCursor };
+};
+
 export default {
   createStory,
   getStories,
@@ -887,5 +1059,7 @@ export default {
   updateStoryComment,
   deleteStoryComment,
   canReportStoryComment,
-  reportStoryComment
+  reportStoryComment,
+  getStoryComments,
+  getStoryCommentsMeta
 };

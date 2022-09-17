@@ -146,4 +146,12 @@ router.post(
   storyController.reportStoryComment
 );
 
+router.get(
+  '/:storyIdx/comments',
+  [param('storyIdx').exists({ checkFalsy: true }), query('cursor').optional()],
+  validator,
+  authJwt,
+  storyController.getStoryComments
+);
+
 export default router;
