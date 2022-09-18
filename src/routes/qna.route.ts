@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { body, header } from 'express-validator';
+import { body, header, param } from 'express-validator';
 import validator from '@middlewares/validator';
 import { isValidJwt } from '@middlewares/token';
 import { qnaController } from '@controllers/index';
@@ -17,6 +17,17 @@ router.post(
   validator,
   authJwt,
   qnaController.createQna
+);
+
+router.get(
+  '/:qnaIdx',
+  [
+    header('authorization').optional().custom(isValidJwt),
+    param('qnaIdx').exists({ checkFalsy: true })
+  ],
+  validator,
+  authJwt,
+  qnaController.getQna
 );
 
 export default router;

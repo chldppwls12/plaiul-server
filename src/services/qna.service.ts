@@ -1,5 +1,7 @@
-import { Qna } from '@entities/index';
+import { Qna, QnaComment, QnaLike } from '@entities/index';
 import AppDataSource from '@config/data-source';
+import { CustomError, ErrorType } from '@utils/error';
+import httpStatusCode from '@utils/httpStatusCode';
 
 /**
  *
@@ -30,6 +32,90 @@ const createQna = async (userIdx: number, title: string, content: string) => {
   };
 };
 
+/**
+ *
+ * @param qnaIdx
+ * @desc 존재하는 qnaIdx인지
+ */
+const isExistQnaIdx = async (qnaIdx: number) => {
+  try {
+    await Qna.createQueryBuilder().where('qnaIdx = :qnaIdx', { qnaIdx }).getOneOrFail();
+  } catch (err: any) {
+    throw new CustomError(
+      httpStatusCode.BAD_REQUEST,
+      ErrorType.INVALID_QNAIDX.message,
+      ErrorType.INVALID_QNAIDX.code,
+      []
+    );
+  }
+};
+
+/**
+ *
+ * @param userIdx
+ * @param qnaIdx
+ * @desc qna 조회
+ */
+const getQna = async (userIdx: number | undefined, qnaIdx: number) => {
+  const qna = await Qna.createQueryBuilder('qna')
+    .select([
+      'qna.qnaIdx AS qnaIdx',
+      'qna.title AS title',
+      'qna.content AS content',
+      'qna.createdAt AS createdAt',
+      'user.userIdx AS userIdx',
+      'user.nickname AS nickname',
+      'IF(user.profile != "", user.profile, NULL) AS profile'
+    ])
+    .leftJoin('qna.user', 'user')
+    .addSelect(
+      qb =>
+        qb
+          .select('qnaLikeIdx')
+          .from(QnaLike, 'qnaLike')
+          .where('qnaLike.userIdx = :userIdx', { userIdx })
+          .andWhere('qnaLike.qnaIdx = :qnaIdx', { qnaIdx }),
+      'isLiked'
+    )
+    .addSelect(
+      qb =>
+        qb
+          .select('COUNT(*) AS likeCnt')
+          .from(QnaLike, 'qnaLike')
+          .where('qnaLike.qnaIdx = :qnaIdx', { qnaIdx }),
+      'likeCnt'
+    )
+    .addSelect(
+      qb =>
+        qb
+          .select('COUNT(*) AS commentCnt')
+          .from(QnaComment, 'qnaComment')
+          .where('qnaComment.qnaIdx = :qnaIdx', { qnaIdx }),
+      'commentCnt'
+    )
+    .where('qna.qnaIdx = :qnaIdx', { qnaIdx })
+    .getRawOne();
+
+  const result = {
+    qnaIdx: qna.qnaIdx,
+    title: qna.title,
+    content: qna.content,
+    isLiked: qna.isLiked ? true : false,
+    likeCnt: qna.likeCnt,
+    commentCnt: qna.commentCnt,
+    createdAt: qna.createdAt,
+    user: {
+      userIdx: qna.userIdx,
+      nickname: qna.nickname,
+      profile: qna.profile
+    }
+  };
+
+  return result;
+};
+
 export default {
-  createQna
+  createQna,
+  isExistQnaIdx,
+  getQna
 };
