@@ -27,6 +27,9 @@ export class Qna extends BaseEntity {
   @JoinColumn({ name: 'userIdx' })
   user: User;
 
+  @Column()
+  userIdx: number;
+
   @OneToMany(() => QnaLike, qnaLike => qnaLike.qna)
   likes!: QnaLike[];
 
