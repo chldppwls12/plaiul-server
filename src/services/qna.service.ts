@@ -158,10 +158,27 @@ const updateQna = async (
   });
 };
 
+/**
+ *
+ * @param qnaIdx
+ * @desc qna 삭제
+ */
+const deleteQna = async (qnaIdx: number) => {
+  await AppDataSource.manager.transaction(async transactionalEntityManager => {
+    await transactionalEntityManager
+      .createQueryBuilder()
+      .softDelete()
+      .from(Qna)
+      .where('qnaIdx = :qnaIdx', { qnaIdx })
+      .execute();
+  });
+};
+
 export default {
   createQna,
   isExistQnaIdx,
   getQna,
   isUserQna,
-  updateQna
+  updateQna,
+  deleteQna
 };

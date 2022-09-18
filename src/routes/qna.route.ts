@@ -42,4 +42,12 @@ router.patch(
   qnaController.updateQna
 );
 
+router.delete(
+  '/:qnaIdx',
+  [header('authorization').exists({ checkFalsy: true }).custom(isValidJwt)],
+  validator,
+  authJwt,
+  qnaController.deleteQna
+);
+
 export default router;

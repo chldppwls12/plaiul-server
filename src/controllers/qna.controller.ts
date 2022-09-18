@@ -86,4 +86,31 @@ const updateQna = async (req: Request, res: Response) => {
   }
 };
 
-export default { createQna, getQna, updateQna };
+/**
+ *
+ * @routes DELETE /api/qna/:qnaIdx
+ * @desc qna 삭제
+ */
+const deleteQna = async (req: Request, res: Response) => {
+  const qnaIdx = parseInt(req.params.qnaIdx);
+  const userIdx = req.userIdx as number;
+
+  try {
+    await qnaService.isExistQnaIdx(qnaIdx);
+    await qnaService.isUserQna(userIdx, qnaIdx);
+    await qnaService.deleteQna(qnaIdx);
+
+    return res.status(httpStatusCode.OK).json(successRes({ deleted: true }));
+  } catch (err: any) {
+    if (err instanceof CustomError) {
+      return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+    }
+    return res
+      .status(httpStatusCode.INTERAL_SERVER_ERROR)
+      .json(
+        failRes(ErrorType.INTERAL_SERVER_ERROR.code, ErrorType.INTERAL_SERVER_ERROR.message, [])
+      );
+  }
+};
+
+export default { createQna, getQna, updateQna, deleteQna };
