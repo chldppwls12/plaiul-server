@@ -114,8 +114,54 @@ const getQna = async (userIdx: number | undefined, qnaIdx: number) => {
   return result;
 };
 
+/**
+ *
+ * @param userIdx
+ * @param qnaIdx
+ * @desc 유저의 Qna인지
+ */
+const isUserQna = async (userIdx: number, qnaIdx: number) => {
+  try {
+    await Qna.createQueryBuilder()
+      .select()
+      .where('userIdx = :userIdx', { userIdx })
+      .andWhere('qnaIdx = :qnaIdx', { qnaIdx })
+      .getOneOrFail();
+  } catch (err: any) {
+    throw new CustomError(
+      httpStatusCode.FORBIDDEN,
+      ErrorType.UNAUTHORIZED.message,
+      ErrorType.UNAUTHORIZED.code,
+      []
+    );
+  }
+};
+
+/**
+ *
+ * @param qnaIdx
+ * @param title
+ * @param content
+ * @desc qna 수정
+ */
+const updateQna = async (
+  qnaIdx: number,
+  title: string | undefined,
+  content: string | undefined
+) => {
+  await AppDataSource.manager.transaction(async transactionalEntityManager => {
+    transactionalEntityManager.query(
+      `UPDATE qna SET title = IFNULL(?, title), content = IFNULL(?, content)
+        WHERE qnaIdx = ?`,
+      [title, content, qnaIdx]
+    );
+  });
+};
+
 export default {
   createQna,
   isExistQnaIdx,
-  getQna
+  getQna,
+  isUserQna,
+  updateQna
 };

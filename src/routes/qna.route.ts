@@ -30,4 +30,16 @@ router.get(
   qnaController.getQna
 );
 
+router.patch(
+  '/:qnaIdx',
+  [
+    header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
+    body('title').optional(),
+    body('content').optional()
+  ],
+  validator,
+  authJwt,
+  qnaController.updateQna
+);
+
 export default router;
