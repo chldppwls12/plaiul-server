@@ -1,11 +1,23 @@
 import { Router } from 'express';
-import { body, header, param } from 'express-validator';
+import { body, header, param, query } from 'express-validator';
 import validator from '@middlewares/validator';
 import { isValidJwt } from '@middlewares/token';
 import { qnaController } from '@controllers/index';
 import { authJwt } from '@middlewares/token';
 
 const router: Router = Router();
+
+router.get(
+  '/',
+  [
+    header('authorization').optional().custom(isValidJwt),
+    query('cursor').optional(),
+    query('sort').exists({ checkFalsy: true }).isIn(['popular', 'recently'])
+  ],
+  validator,
+  authJwt,
+  qnaController.getQnas
+);
 
 router.post(
   '/',

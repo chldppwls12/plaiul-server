@@ -1,7 +1,173 @@
-import { Qna, QnaComment, QnaLike } from '@entities/index';
+import { itemsPerPage, sortTypes } from '@utils/constants';
+import { Block, Qna, QnaComment, QnaLike } from '@entities/index';
 import AppDataSource from '@config/data-source';
 import { CustomError, ErrorType } from '@utils/error';
 import httpStatusCode from '@utils/httpStatusCode';
+import { QnaDTO } from '@interfaces/qna';
+
+/**
+ *
+ * @param userIdx
+ * @desc qna 전체 조회
+ */
+const getQnas = async (
+  userIdx: number | undefined,
+  sort: string,
+  cursor: string
+): Promise<QnaDTO[]> => {
+  const blocked = await Block.createQueryBuilder()
+    .select('blockedUserIdx')
+    .where('userIdx = :userIdx', { userIdx })
+    .getRawMany();
+
+  let blockedUserIdxs = blocked.map(item => item.blockedUserIdx);
+  if (blockedUserIdxs.length === 0) {
+    blockedUserIdxs = [-1];
+  }
+
+  let query = Qna.createQueryBuilder('qna')
+    .select([
+      'qna.qnaIdx AS qnaIdx',
+      'qna.title AS title',
+      'qna.createdAt AS createdAt',
+      'user.userIdx AS userIdx',
+      'user.nickname AS nickname'
+    ])
+    .leftJoin('qna.user', 'user')
+    .leftJoin(
+      qb =>
+        qb
+          .select('qnaLike.qnaIdx', 'qnaIdx')
+          .addSelect('COUNT(*)', 'likeCnt')
+          .from(QnaLike, 'qnaLike')
+          .groupBy('qnaLike.qnaIdx'),
+      'getLikeCnt',
+      'getLikeCnt.qnaIdx = qna.qnaIdx'
+    )
+    .leftJoin(
+      qb =>
+        qb
+          .select('qnaComment.qnaIdx', 'qnaIdx')
+          .addSelect('COUNT(*)', 'commentCnt')
+          .from(QnaComment, 'qnaComment')
+          .groupBy('qnaComment.qnaIdx'),
+      'getCommentCnt',
+      'getCommentCnt.qnaIdx = qna.qnaIdx'
+    )
+    .addSelect('IFNULL(getCommentCnt.commentCnt, 0)', 'commentCnt')
+    .addSelect('IFNULL(getLikeCnt.likeCnt, 0)', 'likeCnt')
+    .where('qna.userIdx NOT IN (:...blockedUserIdxs)', { blockedUserIdxs });
+
+  if (sort === sortTypes.POPULAR) {
+    query = query.orderBy('likeCnt', 'DESC');
+  } else if (sort === sortTypes.RECENTLY) {
+    query = query.orderBy('qna.qnaIdx', 'DESC');
+  }
+
+  if (cursor) {
+    query = query.offset(parseInt(cursor));
+  }
+
+  const qnas = await query.limit(itemsPerPage.GET_ALL_QNA).getRawMany();
+
+  const result: any = [];
+
+  let isLiked;
+
+  for (let qna of qnas) {
+    if (userIdx) {
+      isLiked = await QnaLike.createQueryBuilder()
+        .select()
+        .where('userIdx = :userIdx', { userIdx })
+        .andWhere('qnaIdx = :qnaIdx', { qnaIdx: qna.qnaIdx })
+        .getOne();
+    }
+
+    result.push({
+      qnaIdx: qna.qnaIdx,
+      title: qna.title,
+      createdAt: qna.createdAt,
+      commentCnt: qna.commentCnt,
+      likeCnt: qna.likeCnt,
+      user: {
+        userIdx: qna.userIdx,
+        nickname: qna.nickname
+      },
+      isLiked: isLiked ? true : false
+    });
+  }
+
+  return result;
+};
+
+/**
+ * @param cursor
+ * @desc qna 관련 meta data
+ */
+const getQnasMeta = async (
+  userIdx: number | undefined,
+  sort: string,
+  cursor: string | undefined
+) => {
+  const blocked = await Block.createQueryBuilder()
+    .select('blockedUserIdx')
+    .where('userIdx = :userIdx', { userIdx })
+    .getRawMany();
+
+  let blockedUserIdxs = blocked.map(item => item.blockedUserIdx);
+  if (blockedUserIdxs.length === 0) {
+    blockedUserIdxs = [-1];
+  }
+
+  let query = Qna.createQueryBuilder('qna')
+    .select()
+    .leftJoin(
+      qb =>
+        qb
+          .select('qnaLike.qnaIdx', 'qnaIdx')
+          .addSelect('COUNT(*)', 'likeCnt')
+          .from(QnaLike, 'qnaLike')
+          .groupBy('qnaLike.qnaIdx'),
+      'getLikeCnt',
+      'getLikeCnt.qnaIdx = qna.qnaIdx'
+    )
+    .addSelect('IFNULL(getLikeCnt.likeCnt, 0)', 'likeCnt')
+    .where('userIdx NOT IN (:...blockedUserIdxs)', {
+      blockedUserIdxs
+    })
+    .take(itemsPerPage.GET_ALL_QNA);
+
+  if (cursor) {
+    query = query.andWhere('qna.qnaIdx < :cursor', { cursor: parseInt(cursor) });
+  }
+
+  if (sort === sortTypes.POPULAR) {
+    query = query.orderBy('likeCnt', 'DESC');
+  } else if (sort === sortTypes.RECENTLY) {
+    query = query.orderBy('qna.qnaIdx', 'DESC');
+  }
+
+  const nextQna = await query.getOne();
+
+  let nextCursor = null;
+  if (nextQna) {
+    nextCursor = cursor
+      ? String(parseInt(cursor) + itemsPerPage.GET_ALL_QNA)
+      : String(itemsPerPage.GET_ALL_QNA);
+  }
+
+  const totalQnaCnt = await Qna.createQueryBuilder('qna')
+    .select()
+    .where('userIdx NOT IN (:...blockedUserIdxs)', { blockedUserIdxs })
+    .getCount();
+
+  const meta = {
+    count: totalQnaCnt,
+    nextCursor
+  };
+
+  return meta;
+};
 
 /**
  *
@@ -175,6 +341,8 @@ const deleteQna = async (qnaIdx: number) => {
 };
 
 export default {
+  getQnas,
+  getQnasMeta,
   createQna,
   isExistQnaIdx,
   getQna,
