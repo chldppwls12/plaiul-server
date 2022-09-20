@@ -25,9 +25,15 @@ export class QnaReqReport extends BaseEntity {
   @JoinColumn({ name: 'userIdx' })
   user: User;
 
+  @Column()
+  userIdx: number;
+
   @ManyToOne(() => Qna, qna => qna.reqReports)
   @JoinColumn({ name: 'qnaIdx' })
   qna: Qna;
+
+  @Column()
+  qnaIdx: number;
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;

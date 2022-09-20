@@ -62,4 +62,17 @@ router.delete(
   qnaController.deleteQna
 );
 
+router.post(
+  '/:qnaIdx/report',
+  [
+    header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
+    param('qnaIdx').exists({ checkFalsy: true }),
+    body('reasonIdx').exists({ checkFalsy: true }).isIn([1, 2, 3, 4, 5, 6, 7]),
+    body('reason').optional()
+  ],
+  validator,
+  authJwt,
+  qnaController.reportQna
+);
+
 export default router;

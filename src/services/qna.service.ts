@@ -1,9 +1,10 @@
 import { itemsPerPage, sortTypes } from '@utils/constants';
-import { Block, Qna, QnaComment, QnaLike } from '@entities/index';
+import { Block, Qna, QnaComment, QnaLike, QnaReqReport } from '@entities/index';
 import AppDataSource from '@config/data-source';
 import { CustomError, ErrorType } from '@utils/error';
 import httpStatusCode from '@utils/httpStatusCode';
 import { QnaDTO } from '@interfaces/qna';
+import { getReportReason } from '@utils/reason';
 
 /**
  *
@@ -340,6 +341,74 @@ const deleteQna = async (qnaIdx: number) => {
   });
 };
 
+/**
+ *
+ * @param userIdx
+ * @param qnaIdx
+ * @desc qna 신고 가능한지
+ */
+const canReportQna = async (userIdx: number, qnaIdx: number) => {
+  const isUserQna = await Qna.createQueryBuilder()
+    .select()
+    .where('userIdx = :userIdx', { userIdx })
+    .andWhere('qnaIdx = :qnaIdx', { qnaIdx })
+    .getOne();
+
+  if (isUserQna) {
+    throw new CustomError(
+      httpStatusCode.BAD_REQUEST,
+      ErrorType.CAN_NOT_REPORT_SELF.message,
+      ErrorType.CAN_NOT_REPORT_SELF.code,
+      []
+    );
+  }
+
+  const isReported = await QnaReqReport.createQueryBuilder()
+    .select()
+    .where('userIdx = :userIdx', { userIdx })
+    .andWhere('qnaIdx = :qnaIdx', { qnaIdx })
+    .getOne();
+
+  if (isReported) {
+    throw new CustomError(
+      httpStatusCode.BAD_REQUEST,
+      ErrorType.ALREADY_REPORT.message,
+      ErrorType.ALREADY_REPORT.code,
+      []
+    );
+  }
+};
+
+/**
+ *
+ * @param userIdx
+ * @param qnaIdx
+ * @param reasonIdx
+ * @param etcReason
+ * @desc qna 신고
+ */
+const reportQna = async (
+  userIdx: number,
+  qnaIdx: number,
+  reasonIdx: number,
+  etcReason: string | undefined
+) => {
+  const reason = getReportReason(reasonIdx);
+  await AppDataSource.manager.transaction(async transactionalEntityManager => {
+    transactionalEntityManager
+      .createQueryBuilder()
+      .insert()
+      .into(QnaReqReport)
+      .values({
+        userIdx,
+        qnaIdx,
+        reason,
+        etcReason
+      })
+      .execute();
+  });
+};
+
 export default {
   getQnas,
   getQnasMeta,
@@ -348,5 +417,7 @@ export default {
   getQna,
   isUserQna,
   updateQna,
-  deleteQna
+  deleteQna,
+  canReportQna,
+  reportQna
 };

@@ -140,4 +140,32 @@ const deleteQna = async (req: Request, res: Response) => {
   }
 };
 
-export default { getQnas, createQna, getQna, updateQna, deleteQna };
+/**
+ *
+ * @routes POST /api/qna/:qnaIdx/report
+ * @desc qna 신고
+ */
+const reportQna = async (req: Request, res: Response) => {
+  const qnaIdx = parseInt(req.params.qnaIdx);
+  const userIdx = req.userIdx as number;
+  const { reasonIdx, reason: etcReason } = req.body;
+
+  try {
+    await qnaService.isExistQnaIdx(qnaIdx);
+    await qnaService.canReportQna(userIdx, qnaIdx);
+    await qnaService.reportQna(userIdx, qnaIdx, reasonIdx, etcReason);
+
+    return res.status(httpStatusCode.OK).json(successRes({ reported: true }));
+  } catch (err: any) {
+    if (err instanceof CustomError) {
+      return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+    }
+    return res
+      .status(httpStatusCode.INTERAL_SERVER_ERROR)
+      .json(
+        failRes(ErrorType.INTERAL_SERVER_ERROR.code, ErrorType.INTERAL_SERVER_ERROR.message, [])
+      );
+  }
+};
+
+export default { getQnas, createQna, getQna, updateQna, deleteQna, reportQna };
