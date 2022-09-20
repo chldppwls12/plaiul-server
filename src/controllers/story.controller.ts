@@ -12,9 +12,12 @@ import { createStoryResult } from '@interfaces/story';
  * @access private
  */
 const createStory = async (req: Request, res: Response) => {
-  const { title, content, tags } = req.body;
+  const { title, content } = req.body;
+  let { tags } = req.body;
+  if (typeof tags === 'string') {
+    tags = [tags];
+  }
   const userIdx = req.userIdx as number;
-
   const images = (req.files as any[])?.map(item => item.location);
   try {
     const result = await storyService.createStory(userIdx, title, content, tags, images);
@@ -82,7 +85,10 @@ const getStory = async (req: Request, res: Response) => {
 const updateStory = async (req: Request, res: Response) => {
   const title = req.body?.title;
   const content = req.body?.content;
-  const tags = req.body?.tags ? req.body?.tags : [];
+  let tags = req.body?.tags;
+  if (tags && typeof tags === 'string') {
+    tags = [tags];
+  }
   const images = (req?.files as any[])?.map(item => item.location);
 
   const storyIdx = parseInt(req.params.storyIdx);
