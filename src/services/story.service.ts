@@ -115,6 +115,7 @@ const getStories = async (
       .select([
         'story.storyIdx AS storyIdx',
         'story.title AS title',
+        'story.content AS content',
         'user.userIdx AS userIdx',
         'user.nickname AS nickname'
       ])
