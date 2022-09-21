@@ -101,4 +101,16 @@ router.patch(
   qnaController.updateQnaComment
 );
 
+router.delete(
+  '/:qnaIdx/comments/:commentIdx',
+  [
+    header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
+    param('qnaIdx').exists({ checkFalsy: true }),
+    param('commentIdx').exists({ checkFalsy: true })
+  ],
+  validator,
+  authJwt,
+  qnaController.deleteQnaComment
+);
+
 export default router;

@@ -228,6 +228,35 @@ const updateQnaComment = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ *
+ * @routes DELETE /api/qna/:qnaIdx/comments/:commentIdx
+ * @desc qna 댓글 삭제
+ */
+const deleteQnaComment = async (req: Request, res: Response) => {
+  const qnaIdx = parseInt(req.params.qnaIdx);
+  const qnaCommentIdx = parseInt(req.params.commentIdx);
+  const userIdx = req.userIdx as number;
+
+  try {
+    await qnaService.isExistQnaIdx(qnaIdx);
+    await qnaService.isExistQnaCommentIdx(qnaIdx, qnaCommentIdx);
+    await qnaService.isUserQnaComment(userIdx, qnaCommentIdx);
+    await qnaService.deleteQnaComment(qnaCommentIdx);
+
+    return res.status(httpStatusCode.OK).json(successRes({ deleted: true }));
+  } catch (err: any) {
+    if (err instanceof CustomError) {
+      return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+    }
+    return res
+      .status(httpStatusCode.INTERAL_SERVER_ERROR)
+      .json(
+        failRes(ErrorType.INTERAL_SERVER_ERROR.code, ErrorType.INTERAL_SERVER_ERROR.message, [])
+      );
+  }
+};
+
 export default {
   getQnas,
   createQna,
@@ -236,5 +265,6 @@ export default {
   deleteQna,
   reportQna,
   createQnaComment,
-  updateQnaComment
+  updateQnaComment,
+  deleteQnaComment
 };

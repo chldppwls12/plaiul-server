@@ -532,6 +532,22 @@ const updateQnaComment = async (qnaCommentIdx: number, comment: string) => {
   });
 };
 
+/**
+ *
+ * @param qnaCommentIdx
+ * @desc qna 댓글 삭제
+ */
+const deleteQnaComment = async (qnaCommentIdx: number) => {
+  await AppDataSource.manager.transaction(async transactionalEntityManager => {
+    await transactionalEntityManager
+      .createQueryBuilder()
+      .softDelete()
+      .from(QnaComment)
+      .where('qnaCommentIdx = :qnaCommentIdx', { qnaCommentIdx })
+      .execute();
+  });
+};
+
 export default {
   getQnas,
   getQnasMeta,
@@ -547,5 +563,6 @@ export default {
   createQnaComment,
   isExistQnaCommentIdx,
   isUserQnaComment,
-  updateQnaComment
+  updateQnaComment,
+  deleteQnaComment
 };
