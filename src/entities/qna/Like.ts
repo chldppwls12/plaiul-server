@@ -4,7 +4,8 @@ import {
   BaseEntity,
   CreateDateColumn,
   ManyToOne,
-  JoinColumn
+  JoinColumn,
+  Column
 } from 'typeorm';
 import { User, Qna } from '@entities/index';
 
@@ -17,9 +18,15 @@ export class QnaLike extends BaseEntity {
   @JoinColumn({ name: 'userIdx' })
   user: User;
 
+  @Column()
+  userIdx: number;
+
   @ManyToOne(() => Qna, qna => qna.likes)
   @JoinColumn({ name: 'qnaIdx' })
   qna: Qna;
+
+  @Column()
+  qnaIdx: number;
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;

@@ -168,4 +168,25 @@ const reportQna = async (req: Request, res: Response) => {
   }
 };
 
-export default { getQnas, createQna, getQna, updateQna, deleteQna, reportQna };
+const changeQnaLike = async (req: Request, res: Response) => {
+  const qnaIdx = parseInt(req.params.qnaIdx);
+  const userIdx = req.userIdx as number;
+
+  try {
+    await qnaService.isExistQnaIdx(qnaIdx);
+    const result = await qnaService.changeQnaLike(userIdx, qnaIdx);
+
+    return res.status(httpStatusCode.OK).json(successRes(result));
+  } catch (err: any) {
+    if (err instanceof CustomError) {
+      return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+    }
+    return res
+      .status(httpStatusCode.INTERAL_SERVER_ERROR)
+      .json(
+        failRes(ErrorType.INTERAL_SERVER_ERROR.code, ErrorType.INTERAL_SERVER_ERROR.message, [])
+      );
+  }
+};
+
+export default { getQnas, createQna, getQna, updateQna, deleteQna, reportQna, changeQnaLike };
