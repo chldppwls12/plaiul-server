@@ -75,4 +75,17 @@ router.post(
   qnaController.reportQna
 );
 
+router.post(
+  '/:qnaIdx/comments',
+  [
+    header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
+    param('qnaIdx').exists({ checkFalsy: true }),
+    body('parentCommentIdx').optional(),
+    body('content').exists({ checkFalsy: true })
+  ],
+  validator,
+  authJwt,
+  qnaController.createQnaComment
+);
+
 export default router;

@@ -409,6 +409,66 @@ const reportQna = async (
   });
 };
 
+/**
+ *
+ * @param qnaIdx
+ * @param parentCommentIdx
+ * @desc qna 댓글 작성 가능 여부
+ */
+const canCreateQnaComment = async (qnaIdx: number, parentCommentIdx: number) => {
+  try {
+    await QnaComment.createQueryBuilder()
+      .where('qnaCommentIdx = :qnaCommentIdx', {
+        qnaCommentIdx: parentCommentIdx
+      })
+      .andWhere('qnaIdx = :qnaIdx', { qnaIdx })
+      .getOneOrFail();
+  } catch (err: any) {
+    throw new CustomError(
+      httpStatusCode.BAD_REQUEST,
+      ErrorType.INVALID_PARENTCOMMENTIDX.message,
+      ErrorType.INVALID_PARENTCOMMENTIDX.code,
+      []
+    );
+  }
+};
+
+/**
+ *
+ * @param userIdx
+ * @param qnaIdx
+ * @param parentCommentIdx
+ * @param comment
+ * @desc qna 댓글 작성
+ */
+const createQnaComment = async (
+  userIdx: number,
+  qnaIdx: number,
+  parentCommentIdx: number | undefined,
+  comment: string
+) => {
+  let commentIdx;
+  await AppDataSource.manager.transaction(async transactionalEntityManager => {
+    const qnaComment = await transactionalEntityManager
+      .createQueryBuilder()
+      .insert()
+      .into(QnaComment)
+      .values({
+        userIdx,
+        qnaIdx,
+        parentCommentIdx,
+        comment
+      })
+      .execute();
+
+    commentIdx = qnaComment.identifiers[0].qnaCommentIdx;
+  });
+
+  return {
+    commentIdx
+  };
+};
+
 export default {
   getQnas,
   getQnasMeta,
@@ -419,5 +479,7 @@ export default {
   updateQna,
   deleteQna,
   canReportQna,
-  reportQna
+  reportQna,
+  canCreateQnaComment,
+  createQnaComment
 };

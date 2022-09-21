@@ -9,7 +9,7 @@ import {
   ManyToOne,
   JoinColumn
 } from 'typeorm';
-import { Qna } from '@entities/index';
+import { Qna, User } from '@entities/index';
 
 @Entity()
 export class QnaComment extends BaseEntity {
@@ -22,6 +22,23 @@ export class QnaComment extends BaseEntity {
   @ManyToOne(() => Qna, qna => qna.comments)
   @JoinColumn({ name: 'qnaIdx' })
   qna: Qna;
+
+  @Column()
+  qnaIdx: number;
+
+  @ManyToOne(() => User, user => user.qnaComments)
+  @JoinColumn({ name: 'userIdx' })
+  user: User;
+
+  @Column()
+  userIdx: number;
+
+  @ManyToOne(() => QnaComment, { nullable: true })
+  @JoinColumn({ name: 'parentCommentIdx' })
+  parentComment: QnaComment;
+
+  @Column({ type: 'number', nullable: true })
+  parentCommentIdx: number;
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;

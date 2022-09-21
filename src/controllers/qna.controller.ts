@@ -168,4 +168,34 @@ const reportQna = async (req: Request, res: Response) => {
   }
 };
 
-export default { getQnas, createQna, getQna, updateQna, deleteQna, reportQna };
+/**
+ *
+ * @routes POST /api/qna/:qnaIdx/comments
+ * @desc Qna 댓글 작성
+ */
+const createQnaComment = async (req: Request, res: Response) => {
+  const qnaIdx = parseInt(req.params.qnaIdx);
+  const userIdx = req.userIdx as number;
+  const { content: comment, parentCommentIdx } = req.body;
+
+  try {
+    await qnaService.isExistQnaIdx(qnaIdx);
+    if (parentCommentIdx) {
+      await qnaService.canCreateQnaComment(qnaIdx, parentCommentIdx);
+    }
+    const result = await qnaService.createQnaComment(userIdx, qnaIdx, parentCommentIdx, comment);
+
+    return res.status(httpStatusCode.OK).json(successRes(result));
+  } catch (err: any) {
+    if (err instanceof CustomError) {
+      return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+    }
+    return res
+      .status(httpStatusCode.INTERAL_SERVER_ERROR)
+      .json(
+        failRes(ErrorType.INTERAL_SERVER_ERROR.code, ErrorType.INTERAL_SERVER_ERROR.message, [])
+      );
+  }
+};
+
+export default { getQnas, createQna, getQna, updateQna, deleteQna, reportQna, createQnaComment };

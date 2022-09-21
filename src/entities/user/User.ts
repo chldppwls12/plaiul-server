@@ -18,6 +18,7 @@ import {
   Tip,
   Block,
   StoryComment,
+  QnaComment,
   CommentReqReport
 } from '@entities/index';
 import { LoginType } from './../common/Enums';
@@ -80,6 +81,9 @@ export class User extends BaseEntity {
 
   @OneToMany(() => StoryComment, storyComment => storyComment.user)
   storyComments!: StoryComment[];
+
+  @OneToMany(() => QnaComment, qnaComment => qnaComment.user)
+  qnaComments!: QnaComment[];
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
