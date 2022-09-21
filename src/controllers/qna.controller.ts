@@ -198,4 +198,43 @@ const createQnaComment = async (req: Request, res: Response) => {
   }
 };
 
-export default { getQnas, createQna, getQna, updateQna, deleteQna, reportQna, createQnaComment };
+/**
+ *
+ * @routes PATCH /api/qna/:qnaIdx/comments/:commentIdx
+ * @desc qna 댓글 수정
+ */
+const updateQnaComment = async (req: Request, res: Response) => {
+  const qnaIdx = parseInt(req.params.qnaIdx);
+  const qnaCommentIdx = parseInt(req.params.commentIdx);
+  const userIdx = req.userIdx as number;
+  const { content: comment } = req.body;
+
+  try {
+    await qnaService.isExistQnaIdx(qnaIdx);
+    await qnaService.isExistQnaCommentIdx(qnaIdx, qnaCommentIdx);
+    await qnaService.isUserQnaComment(userIdx, qnaCommentIdx);
+    await qnaService.updateQnaComment(qnaCommentIdx, comment);
+
+    return res.status(httpStatusCode.OK).json(successRes({ modified: true }));
+  } catch (err: any) {
+    if (err instanceof CustomError) {
+      return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+    }
+    return res
+      .status(httpStatusCode.INTERAL_SERVER_ERROR)
+      .json(
+        failRes(ErrorType.INTERAL_SERVER_ERROR.code, ErrorType.INTERAL_SERVER_ERROR.message, [])
+      );
+  }
+};
+
+export default {
+  getQnas,
+  createQna,
+  getQna,
+  updateQna,
+  deleteQna,
+  reportQna,
+  createQnaComment,
+  updateQnaComment
+};

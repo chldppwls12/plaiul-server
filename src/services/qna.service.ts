@@ -469,6 +469,69 @@ const createQnaComment = async (
   };
 };
 
+/**
+ *
+ * @param qnaIdx
+ * @param qnaCommentIdx
+ * @desc 존재하는 qna 댓글인지
+ */
+const isExistQnaCommentIdx = async (qnaIdx: number, qnaCommentIdx: number) => {
+  try {
+    await QnaComment.createQueryBuilder()
+      .select()
+      .where('qnaCommentIdx = :qnaCommentIdx', { qnaCommentIdx })
+      .andWhere('qnaIdx = :qnaIdx', { qnaIdx })
+      .getOneOrFail();
+  } catch (err: any) {
+    throw new CustomError(
+      httpStatusCode.BAD_REQUEST,
+      ErrorType.INVALID_COMMENTIDX.message,
+      ErrorType.INVALID_COMMENTIDX.code,
+      []
+    );
+  }
+};
+
+/**
+ *
+ * @param userIdx
+ * @param qnaCommentIdx
+ * @desc 유저의 qna 댓글인지
+ */
+const isUserQnaComment = async (userIdx: number, qnaCommentIdx: number) => {
+  try {
+    await QnaComment.createQueryBuilder()
+      .select()
+      .where('qnaCommentIdx = :qnaCommentIdx', { qnaCommentIdx })
+      .andWhere('userIdx = :userIdx', { userIdx })
+      .getOneOrFail();
+  } catch (err: any) {
+    throw new CustomError(
+      httpStatusCode.UNAUTHORIZED,
+      ErrorType.UNAUTHORIZED.message,
+      ErrorType.UNAUTHORIZED.code,
+      []
+    );
+  }
+};
+
+/**
+ *
+ * @param qnaCommentIdx
+ * @param comment
+ * @desc qna 댓글 수정
+ */
+const updateQnaComment = async (qnaCommentIdx: number, comment: string) => {
+  await AppDataSource.manager.transaction(async transactionalEntityManager => {
+    await transactionalEntityManager
+      .createQueryBuilder()
+      .update(QnaComment)
+      .set({ comment })
+      .where('qnaCommentIdx = :qnaCommentIdx', { qnaCommentIdx })
+      .execute();
+  });
+};
+
 export default {
   getQnas,
   getQnasMeta,
@@ -481,5 +544,8 @@ export default {
   canReportQna,
   reportQna,
   canCreateQnaComment,
-  createQnaComment
+  createQnaComment,
+  isExistQnaCommentIdx,
+  isUserQnaComment,
+  updateQnaComment
 };
