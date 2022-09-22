@@ -142,7 +142,7 @@ const getQnaNextCursor = async (
       })
       .getOne();
 
-    return nextQnas ? nextCursor : null;
+    return nextQnas ? String(nextCursor) : null;
   } else if (sort === sortTypes.POPULAR) {
     let query = Qna.createQueryBuilder('qna')
       .select('qna.qnaIdx AS qnaIdx')
