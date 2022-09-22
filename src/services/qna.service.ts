@@ -343,6 +343,7 @@ const getQna = async (userIdx: number | undefined, qnaIdx: number) => {
     qnaIdx: qna.qnaIdx,
     title: qna.title,
     content: qna.content,
+    isWriter: qna.userIdx === userIdx ? true : false,
     isLiked: qna.isLiked ? true : false,
     likeCnt: qna.likeCnt,
     commentCnt: qna.commentCnt,

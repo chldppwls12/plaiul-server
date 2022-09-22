@@ -331,6 +331,7 @@ const getStory = async (userIdx: number | undefined, storyIdx: number): Promise<
     story.tags = [];
     tags.map(tag => story.tags.push(tag.name));
 
+    story.isWriter = story.userIdx === userIdx ? true : false;
     story.isLiked = story.isLiked ? true : false;
 
     story.user = {
