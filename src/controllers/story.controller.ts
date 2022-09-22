@@ -85,7 +85,7 @@ const getStory = async (req: Request, res: Response) => {
 const updateStory = async (req: Request, res: Response) => {
   const title = req.body?.title;
   const content = req.body?.content;
-  let tags = req.body?.tags;
+  let tags = req.body?.tags ? req.body.tags : [];
   if (tags && typeof tags === 'string') {
     tags = [tags];
   }
