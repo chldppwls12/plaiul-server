@@ -113,4 +113,15 @@ router.delete(
   qnaController.deleteQnaComment
 );
 
+router.patch(
+  '/:qnaIdx/like',
+  [
+    header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
+    param('qnaIdx').exists({ checkFalsy: true })
+  ],
+  validator,
+  authJwt,
+  qnaController.changeQnaLike
+);
+
 export default router;

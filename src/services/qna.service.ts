@@ -5,6 +5,7 @@ import { CustomError, ErrorType } from '@utils/error';
 import httpStatusCode from '@utils/httpStatusCode';
 import { QnaDTO } from '@interfaces/qna';
 import { getReportReason } from '@utils/reason';
+import { LikeResult } from '@interfaces/common/response';
 
 /**
  *
@@ -623,6 +624,47 @@ const deleteQnaComment = async (qnaCommentIdx: number) => {
   });
 };
 
+/** @param userIdx
+ * @param qnaIdx
+ * @desc qna 좋아요 변경
+ */
+const changeQnaLike = async (userIdx: number, qnaIdx: number) => {
+  let result: LikeResult = {
+    isLiked: true
+  };
+
+  const likeStatus = await QnaLike.createQueryBuilder()
+    .select()
+    .where('userIdx = :userIdx', { userIdx })
+    .andWhere('qnaIdx = :qnaIdx', { qnaIdx })
+    .getOne();
+
+  await AppDataSource.manager.transaction(async transactionalEntityManager => {
+    if (likeStatus) {
+      await transactionalEntityManager
+        .createQueryBuilder()
+        .delete()
+        .from(QnaLike)
+        .where('userIdx = :userIdx', { userIdx })
+        .andWhere('qnaIdx = :qnaIdx', { qnaIdx })
+        .execute();
+
+      result = { isLiked: false };
+    } else {
+      await transactionalEntityManager
+        .createQueryBuilder()
+        .insert()
+        .into(QnaLike)
+        .values({ userIdx, qnaIdx })
+        .execute();
+
+      result = { isLiked: true };
+    }
+  });
+
+  return result;
+};
+
 export default {
   getQnas,
   getQnasMeta,
@@ -639,5 +681,6 @@ export default {
   isExistQnaCommentIdx,
   isUserQnaComment,
   updateQnaComment,
-  deleteQnaComment
+  deleteQnaComment,
+  changeQnaLike
 };
