@@ -59,14 +59,21 @@ const getQnas = async (
     .addSelect('IFNULL(getLikeCnt.likeCnt, 0)', 'likeCnt')
     .where('qna.userIdx NOT IN (:...blockedUserIdxs)', { blockedUserIdxs });
 
-  if (sort === sortTypes.POPULAR) {
-    query = query.orderBy('likeCnt', 'DESC');
-  } else if (sort === sortTypes.RECENTLY) {
+  if (sort === sortTypes.RECENTLY) {
     query = query.orderBy('qna.qnaIdx', 'DESC');
+  } else if (sort === sortTypes.POPULAR) {
+    query = query.orderBy('likeCnt', 'DESC').addOrderBy('qna.qnaIdx', 'DESC');
   }
 
   if (cursor) {
-    query = query.offset(parseInt(cursor));
+    if (sort === sortTypes.RECENTLY) {
+      query = query.andWhere('qna.qnaIdx < :qnaIdx', { qnaIdx: cursor });
+    } else if (sort === sortTypes.POPULAR) {
+      query = query.andWhere(
+        `CONCAT(LPAD(IFNULL(getLikeCnt.likeCnt, 0), 10, '0'), LPAD(IFNULL(qna.qnaIdx, 0), 10, '0')) < :cursor`,
+        { cursor }
+      );
+    }
   }
 
   const qnas = await query.limit(itemsPerPage.GET_ALL_QNA).getRawMany();
@@ -101,6 +108,110 @@ const getQnas = async (
   return result;
 };
 
+const getQnaNextCursor = async (
+  cursor: string | undefined,
+  sort: string,
+  blockedUsers: number[]
+) => {
+  if (sort === sortTypes.RECENTLY) {
+    let query = Qna.createQueryBuilder()
+      .select()
+      .limit(itemsPerPage.GET_ALL_QNA)
+      .where('userIdx NOT IN (:...blockedUsers)', {
+        blockedUsers
+      })
+      .orderBy('qnaIdx', 'DESC');
+
+    if (cursor) {
+      query = query.andWhere('qnaIdx < :qnaIdx', { qnaIdx: cursor });
+    }
+
+    const curPageQnas = await query.getMany();
+    const nextCursor = curPageQnas[curPageQnas.length - 1]?.qnaIdx;
+    if (!nextCursor) {
+      return null;
+    }
+
+    const nextQnas = await Qna.createQueryBuilder()
+      .select()
+      .orderBy('qnaIdx', 'DESC')
+      .where('qnaIdx < :qnaIdx', { qnaIdx: nextCursor })
+      .andWhere('userIdx NOT IN (:...blockedUsers)', {
+        blockedUsers
+      })
+      .getOne();
+
+    return nextQnas ? nextCursor : null;
+  } else if (sort === sortTypes.POPULAR) {
+    let query = Qna.createQueryBuilder('qna')
+      .select('qna.qnaIdx AS qnaIdx')
+      .leftJoin(
+        qb =>
+          qb
+            .select('qnaLike.qnaIdx', 'qnaIdx')
+            .addSelect('COUNT(*)', 'likeCnt')
+            .from(QnaLike, 'qnaLike')
+            .groupBy('qnaLike.qnaIdx'),
+        'getLikeCnt',
+        'getLikeCnt.qnaIdx = qna.qnaIdx'
+      )
+      .where('userIdx NOT IN (:...blockedUsers)', {
+        blockedUsers
+      })
+      .addSelect('IFNULL(getLikeCnt.likeCnt, 0)', 'likeCnt')
+      .addSelect(
+        `CONCAT(LPAD(IFNULL(getLikeCnt.likeCnt, 0), 10, '0'), LPAD(IFNULL(qna.qnaIdx, 0), 10, '0'))`,
+        'customCursor'
+      )
+      .orderBy('likeCnt', 'DESC')
+      .addOrderBy('qna.qnaIdx', 'DESC')
+      .limit(itemsPerPage.GET_ALL_QNA);
+
+    if (cursor) {
+      query = query.andWhere(
+        `CONCAT(LPAD(IFNULL(getLikeCnt.likeCnt, 0), 10, '0'), LPAD(IFNULL(qna.qnaIdx, 0), 10, '0')) < :cursor`,
+        { cursor }
+      );
+    }
+
+    const curPageQnas = await query.getRawMany();
+    const nextCursor = curPageQnas[curPageQnas.length - 1]?.customCursor;
+    if (!nextCursor) {
+      return null;
+    }
+
+    const nextQnas = await Qna.createQueryBuilder('qna')
+      .select()
+      .leftJoin(
+        qb =>
+          qb
+            .select('qnaLike.qnaIdx', 'qnaIdx')
+            .addSelect('COUNT(*)', 'likeCnt')
+            .from(QnaLike, 'qnaLike')
+            .groupBy('qnaLike.qnaIdx'),
+        'getLikeCnt',
+        'getLikeCnt.qnaIdx = qna.qnaIdx'
+      )
+      .addSelect('IFNULL(getLikeCnt.likeCnt, 0)', 'likeCnt')
+      .addSelect(
+        `CONCAT(LPAD(IFNULL(getLikeCnt.likeCnt, 0), 10, '0'), LPAD(IFNULL(qna.qnaIdx, 0), 10, '0'))`,
+        'customCursor'
+      )
+      .where(
+        `CONCAT(LPAD(IFNULL(getLikeCnt.likeCnt, 0), 10, '0'), LPAD(IFNULL(qna.qnaIdx, 0), 10, '0')) < :nextCursor`,
+        { nextCursor }
+      )
+      .andWhere('userIdx NOT IN (:...blockedUsers)', {
+        blockedUsers
+      })
+      .orderBy('likeCnt', 'DESC')
+      .addOrderBy('qna.qnaIdx', 'DESC')
+      .getOne();
+
+    return nextQnas ? nextCursor : null;
+  }
+};
+
 /**
  * @param cursor
  * @desc qna 관련 meta data
@@ -115,51 +226,15 @@ const getQnasMeta = async (
     .where('userIdx = :userIdx', { userIdx })
     .getRawMany();
 
-  let blockedUserIdxs = blocked.map(item => item.blockedUserIdx);
-  if (blockedUserIdxs.length === 0) {
-    blockedUserIdxs = [-1];
+  let blockedUsers = blocked.map(item => item.blockedUserIdx);
+  if (blockedUsers.length === 0) {
+    blockedUsers = [-1];
   }
 
-  let query = Qna.createQueryBuilder('qna')
+  const nextCursor = await getQnaNextCursor(cursor, sort, blockedUsers);
+  const totalQnaCnt = await Qna.createQueryBuilder()
     .select()
-    .leftJoin(
-      qb =>
-        qb
-          .select('qnaLike.qnaIdx', 'qnaIdx')
-          .addSelect('COUNT(*)', 'likeCnt')
-          .from(QnaLike, 'qnaLike')
-          .groupBy('qnaLike.qnaIdx'),
-      'getLikeCnt',
-      'getLikeCnt.qnaIdx = qna.qnaIdx'
-    )
-    .addSelect('IFNULL(getLikeCnt.likeCnt, 0)', 'likeCnt')
-    .where('userIdx NOT IN (:...blockedUserIdxs)', {
-      blockedUserIdxs
-    })
-    .take(itemsPerPage.GET_ALL_QNA);
-
-  if (cursor) {
-    query = query.andWhere('qna.qnaIdx < :cursor', { cursor: parseInt(cursor) });
-  }
-
-  if (sort === sortTypes.POPULAR) {
-    query = query.orderBy('likeCnt', 'DESC');
-  } else if (sort === sortTypes.RECENTLY) {
-    query = query.orderBy('qna.qnaIdx', 'DESC');
-  }
-
-  const nextQna = await query.getOne();
-
-  let nextCursor = null;
-  if (nextQna) {
-    nextCursor = cursor
-      ? String(parseInt(cursor) + itemsPerPage.GET_ALL_QNA)
-      : String(itemsPerPage.GET_ALL_QNA);
-  }
-
-  const totalQnaCnt = await Qna.createQueryBuilder('qna')
-    .select()
-    .where('userIdx NOT IN (:...blockedUserIdxs)', { blockedUserIdxs })
+    .where('userIdx NOT IN (:...blockedUsers)', { blockedUsers })
     .getCount();
 
   const meta = {
