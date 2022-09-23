@@ -1,5 +1,5 @@
 import { itemsPerPage, sortTypes } from '@utils/constants';
-import { Block, Qna, QnaComment, QnaLike, QnaReqReport } from '@entities/index';
+import { Block, Qna, QnaComment, QnaLike, QnaReqReport, CommentReqReport } from '@entities/index';
 import AppDataSource from '@config/data-source';
 import { CustomError, ErrorType } from '@utils/error';
 import httpStatusCode from '@utils/httpStatusCode';
@@ -623,6 +623,68 @@ const deleteQnaComment = async (qnaCommentIdx: number) => {
   });
 };
 
+/**
+ *
+ * @param userIdx
+ * @param qnaCommentIdx
+ * @desc qna 댓글 기존 신고 체크
+ */
+const canReportQnaComment = async (userIdx: number, qnaCommentIdx: number) => {
+  const isReported = await CommentReqReport.createQueryBuilder()
+    .select()
+    .where('qnaCommentIdx = :qnaCommentIdx', { qnaCommentIdx })
+    .andWhere('userIdx = :userIdx', { userIdx })
+    .getOne();
+
+  if (isReported) {
+    throw new CustomError(
+      httpStatusCode.BAD_REQUEST,
+      ErrorType.ALREADY_REPORT.message,
+      ErrorType.ALREADY_REPORT.code,
+      []
+    );
+  }
+};
+
+/**
+ *
+ * @param userIdx
+ * @param qnaCommentIdx
+ * @param reasonIdx
+ * @param etcReason
+ * @desc qna 댓글 신고
+ */
+const reportQnaComment = async (
+  userIdx: number,
+  qnaCommentIdx: number,
+  reasonIdx: number,
+  etcReason: string | undefined
+) => {
+  const reason = getReportReason(reasonIdx);
+  try {
+    await AppDataSource.manager.transaction(async transactionalEntityManager => {
+      transactionalEntityManager
+        .createQueryBuilder()
+        .insert()
+        .into(CommentReqReport)
+        .values({
+          userIdx,
+          qnaCommentIdx,
+          reason,
+          etcReason
+        })
+        .execute();
+    });
+  } catch (err: any) {
+    throw new CustomError(
+      httpStatusCode.INTERAL_SERVER_ERROR,
+      ErrorType.INTERAL_SERVER_ERROR.message,
+      ErrorType.INTERAL_SERVER_ERROR.code,
+      []
+    );
+  }
+};
+
 export default {
   getQnas,
   getQnasMeta,
@@ -639,5 +701,7 @@ export default {
   isExistQnaCommentIdx,
   isUserQnaComment,
   updateQnaComment,
-  deleteQnaComment
+  deleteQnaComment,
+  canReportQnaComment,
+  reportQnaComment
 };

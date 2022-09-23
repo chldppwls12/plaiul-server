@@ -113,4 +113,18 @@ router.delete(
   qnaController.deleteQnaComment
 );
 
+router.post(
+  '/:qnaIdx/comments/:commentIdx/report',
+  [
+    header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
+    param('qnaIdx').exists({ checkFalsy: true }),
+    param('commentIdx').exists({ checkFalsy: true }),
+    body('reasonIdx').exists({ checkFalsy: true }).isIn([1, 2, 3, 4, 5, 6, 7]),
+    body('reason').optional()
+  ],
+  validator,
+  authJwt,
+  qnaController.reportQnaComment
+);
+
 export default router;

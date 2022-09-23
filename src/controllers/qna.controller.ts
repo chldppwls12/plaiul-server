@@ -257,6 +257,36 @@ const deleteQnaComment = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ *
+ * @routes POST /api/qna/:qnaIdx/comments/:commentIdx/report
+ * @desc qna 댓글 신고
+ */
+const reportQnaComment = async (req: Request, res: Response) => {
+  const qnaIdx = parseInt(req.params.qnaIdx);
+  const qnaCommentIdx = parseInt(req.params.commentIdx);
+  const userIdx = req.userIdx as number;
+  const { reasonIdx, reason: etcReason } = req.body;
+
+  try {
+    await qnaService.isExistQnaIdx(qnaIdx);
+    await qnaService.isExistQnaCommentIdx(qnaIdx, qnaCommentIdx);
+    await qnaService.canReportQnaComment(userIdx, qnaCommentIdx);
+    await qnaService.reportQnaComment(userIdx, qnaCommentIdx, reasonIdx, etcReason);
+
+    return res.status(httpStatusCode.OK).json(successRes({ reported: true }));
+  } catch (err: any) {
+    if (err instanceof CustomError) {
+      return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+    }
+    return res
+      .status(httpStatusCode.INTERAL_SERVER_ERROR)
+      .json(
+        failRes(ErrorType.INTERAL_SERVER_ERROR.code, ErrorType.INTERAL_SERVER_ERROR.message, [])
+      );
+  }
+};
+
 export default {
   getQnas,
   createQna,
@@ -266,5 +296,6 @@ export default {
   reportQna,
   createQnaComment,
   updateQnaComment,
-  deleteQnaComment
+  deleteQnaComment,
+  reportQnaComment
 };

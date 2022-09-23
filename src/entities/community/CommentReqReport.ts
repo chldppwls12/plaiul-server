@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, BaseEntity, Column, ManyToOne, JoinColumn } from 'typeorm';
-import { User, StoryComment } from '@entities/index';
+import { User, StoryComment, QnaComment } from '@entities/index';
 import { ReportReason } from '../common/Enums';
 
 @Entity()
@@ -12,7 +12,14 @@ export class CommentReqReport extends BaseEntity {
   storyComment?: StoryComment;
 
   @Column({ nullable: true })
-  storyCommentIdx: number;
+  storyCommentIdx?: number;
+
+  @ManyToOne(() => QnaComment, qnaComment => qnaComment.commentReqReports, { nullable: true })
+  @JoinColumn({ name: 'qnaCommentIdx' })
+  qnaComment?: number;
+
+  @Column({ nullable: true })
+  qnaCommentIdx?: number;
 
   @ManyToOne(() => User, user => user.commentReqReports)
   @JoinColumn({ name: 'userIdx' })

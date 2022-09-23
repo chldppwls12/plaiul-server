@@ -7,9 +7,10 @@ import {
   UpdateDateColumn,
   DeleteDateColumn,
   ManyToOne,
-  JoinColumn
+  JoinColumn,
+  OneToMany
 } from 'typeorm';
-import { Qna, User } from '@entities/index';
+import { Qna, User, CommentReqReport } from '@entities/index';
 
 @Entity()
 export class QnaComment extends BaseEntity {
@@ -39,6 +40,9 @@ export class QnaComment extends BaseEntity {
 
   @Column({ type: 'number', nullable: true })
   parentCommentIdx: number;
+
+  @OneToMany(() => CommentReqReport, commentReqReport => commentReqReport.qnaComment)
+  commentReqReports?: CommentReqReport[];
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
