@@ -18,4 +18,12 @@ router.post(
   userController.blockUser
 );
 
+router.get(
+  '/:userIdx',
+  [header('authorization').optional().custom(isValidJwt)],
+  validator,
+  authJwt,
+  userController.getUserInfo
+);
+
 export default router;
