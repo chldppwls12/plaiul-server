@@ -17,6 +17,7 @@ import { createStoryResult } from '@interfaces/story';
 import { GetStoryDTO } from '@interfaces/story';
 import { itemsPerPage, sortTypes } from '@utils/constants';
 import { getReportReason } from '@utils/reason';
+import { Brackets } from 'typeorm';
 
 /**
  *
@@ -955,7 +956,6 @@ const reportStoryComment = async (
         .execute();
     });
   } catch (err: any) {
-    console.log(err);
     throw new CustomError(
       httpStatusCode.INTERAL_SERVER_ERROR,
       ErrorType.INTERAL_SERVER_ERROR.message,
@@ -1007,27 +1007,32 @@ const getStoryComments = async (
       .leftJoin(
         qb =>
           qb
-            .select('parentCommentIdx', 'parentCommentIdx')
+            .select('storyRecomment.parentCommentIdx', 'parentCommentIdx')
             .addSelect('COUNT(*)', 'recommentCnt')
             .from(StoryComment, 'storyRecomment')
             .groupBy('storyRecomment.parentCommentIdx'),
         'getStoryRecomment',
         'getStoryRecomment.parentCommentIdx = storyComment.storyCommentIdx'
       )
-      .where(() => 'storyComment.parentCommentIdx IS NULL')
       .addSelect('IFNULL(recommentCnt, 0)', 'recommentCnt')
+      .where('storyComment.storyIdx = :storyIdx', { storyIdx })
+      .andWhere('storyComment.parentCommentIdx IS NULL')
       .andWhere(
-        'storyComment.deletedAt IS NULL OR (storyComment.deletedAt IS NOT NULL AND recommentCnt > 0)'
-      )
-      .andWhere('storyComment.storyIdx = :storyIdx', { storyIdx })
-      .withDeleted();
+        new Brackets(qb => {
+          qb.where('storyComment.deletedAt IS NULL').orWhere(
+            'storyComment.deletedAt IS NOT NULL AND recommentCnt > 0'
+          );
+        })
+      );
 
-    //페이지네이션 처리
     if (cursor) {
-      query = query.offset(parseInt(cursor));
+      query = query.andWhere('storyComment.storyCommentIdx > :cursor', { cursor });
     }
 
-    const parentComments = await query.limit(itemsPerPage.GET_STORY_COMMENT).getRawMany();
+    const parentComments = await query
+      .withDeleted()
+      .limit(itemsPerPage.GET_STORY_COMMENT)
+      .getRawMany();
 
     for (let parentComment of parentComments) {
       const { commentIdx: storyCommentIdx } = parentComment;
@@ -1097,44 +1102,82 @@ const getStoryComments = async (
  * @desc 스토리 댓글 meta
  */
 const getStoryCommentsMeta = async (storyIdx: number, cursor: string | undefined) => {
+  const nextCursor = await getStoryCommentNextCursor(storyIdx, cursor);
+
+  const meta = {
+    cursor: nextCursor
+  };
+
+  return meta;
+};
+
+const getStoryCommentNextCursor = async (storyIdx: number, cursor: string | undefined) => {
   let query = StoryComment.createQueryBuilder('storyComment')
-    .select()
-    .leftJoin('storyComment.user', 'user')
+    .select('storyComment.storyCommentIdx', 'storyCommentIdx')
     .leftJoin(
       qb =>
         qb
-          .select('parentCommentIdx', 'parentCommentIdx')
+          .select('storyRecomment.parentCommentIdx', 'parentCommentIdx')
           .addSelect('COUNT(*)', 'recommentCnt')
           .from(StoryComment, 'storyRecomment')
           .groupBy('storyRecomment.parentCommentIdx'),
       'getStoryRecomment',
       'getStoryRecomment.parentCommentIdx = storyComment.storyCommentIdx'
     )
-    .where(() => 'storyComment.parentCommentIdx IS NULL')
     .addSelect('IFNULL(recommentCnt, 0)', 'recommentCnt')
+    .where('storyComment.storyIdx = :storyIdx', { storyIdx })
+    .andWhere('storyComment.parentCommentIdx IS NULL')
     .andWhere(
-      'storyComment.deletedAt IS NULL OR (storyComment.deletedAt IS NOT NULL AND recommentCnt > 0)'
-    )
-    .andWhere('storyComment.storyIdx = :storyIdx', { storyIdx })
+      new Brackets(qb => {
+        qb.where('storyComment.deletedAt IS NULL').orWhere(
+          'storyComment.deletedAt IS NOT NULL AND recommentCnt > 0'
+        );
+      })
+    );
+
+  if (cursor) {
+    query = query.andWhere('storyComment.storyCommentIdx > :cursor', { cursor });
+  }
+
+  const curPageStoryParComments = await query
     .withDeleted()
-    .take(itemsPerPage.GET_STORY_COMMENT);
+    .limit(itemsPerPage.GET_STORY_COMMENT)
+    .getRawMany();
 
-  if (!cursor) {
-    query = query.skip(itemsPerPage.GET_STORY_COMMENT);
-  } else {
-    query = query.skip(parseInt(cursor) + itemsPerPage.GET_STORY_COMMENT);
+  const nextCursor = curPageStoryParComments[curPageStoryParComments.length - 1]?.storyCommentIdx;
+
+  if (!nextCursor) {
+    return null;
   }
 
-  const nextStoryComment = await query.getOne();
+  const nextStoryParComments = await StoryComment.createQueryBuilder('storyComment')
+    .select('storyComment.storyCommentIdx', 'storyCommentIdx')
+    .leftJoin(
+      qb =>
+        qb
+          .select('storyRecomment.parentCommentIdx', 'parentCommentIdx')
+          .addSelect('COUNT(*)', 'recommentCnt')
+          .from(StoryComment, 'storyRecomment')
+          .groupBy('storyRecomment.parentCommentIdx'),
+      'getStoryRecomment',
+      'getStoryRecomment.parentCommentIdx = storyComment.storyCommentIdx'
+    )
+    .addSelect('IFNULL(recommentCnt, 0)', 'recommentCnt')
+    .where('storyComment.storyIdx = :storyIdx', { storyIdx })
+    .andWhere('storyComment.parentCommentIdx IS NULL')
+    .andWhere(
+      new Brackets(qb => {
+        qb.where('storyComment.deletedAt IS NULL').orWhere(
+          'storyComment.deletedAt IS NOT NULL AND recommentCnt > 0'
+        );
+      })
+    )
+    .andWhere('storyComment.storyCommentIdx > :cursor', { cursor: nextCursor })
+    .withDeleted()
+    .limit(itemsPerPage.GET_STORY_COMMENT)
+    .getRawOne();
 
-  let nextCursor = null;
-  if (nextStoryComment) {
-    nextCursor = cursor
-      ? String(parseInt(cursor) + itemsPerPage.GET_STORY_COMMENT)
-      : String(itemsPerPage.GET_STORY_COMMENT);
-  }
-
-  return { nextCursor };
+  return nextStoryParComments ? String(nextCursor) : null;
 };
 
 export default {
