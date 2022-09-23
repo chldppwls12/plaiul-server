@@ -133,16 +133,21 @@ const getStories = async (
       .addSelect('IFNULL(getCnt.likeCnt, 0)', 'likeCnt')
       .where('story.userIdx NOT IN (:...blockedUserIdxs)', { blockedUserIdxs });
 
-    //정렬 처리
-    if (sort === sortTypes.POPULAR) {
-      query = query.orderBy('likeCnt', 'DESC').addOrderBy('story.storyIdx', 'DESC');
-    } else if (sort === sortTypes.RECENTLY) {
+    if (sort === sortTypes.RECENTLY) {
       query = query.orderBy('story.storyIdx', 'DESC');
+    } else if (sort === sortTypes.POPULAR) {
+      query = query.orderBy('likeCnt', 'DESC').addOrderBy('story.storyIdx', 'DESC');
     }
 
-    //페이지네이션 처리
     if (cursor) {
-      query = query.offset(parseInt(cursor));
+      if (sort === sortTypes.RECENTLY) {
+        query = query.andWhere('story.storyIdx < :storyIdx', { storyIdx: cursor });
+      } else if (sort === sortTypes.POPULAR) {
+        query = query.andWhere(
+          `CONCAT(LPAD(IFNULL(getCnt.likeCnt, 0), 10, '0'), LPAD(IFNULL(story.storyIdx, 0), 10, '0')) < :cursor`,
+          { cursor }
+        );
+      }
     }
 
     const stories = await query.limit(itemsPerPage.GET_ALL_STORY).getRawMany();
@@ -192,43 +197,30 @@ const getStories = async (
 /**
  *
  * @param cursor
+ * @param sort
+ * @param cursor
  * @desc 스토리 관련 meta data
  */
-const getStoriesMeta = async (userIdx: number | undefined, cursor: string | undefined) => {
+const getStoriesMeta = async (
+  userIdx: number | undefined,
+  sort: string,
+  cursor: string | undefined
+) => {
   try {
     const blocked = await Block.createQueryBuilder()
       .select('blockedUserIdx')
       .where('userIdx = :userIdx', { userIdx })
       .getRawMany();
 
-    let blockedUserIdxs = blocked.map(item => item.blockedUserIdx);
-    if (blockedUserIdxs.length === 0) {
-      blockedUserIdxs = [-1];
+    let blockedUsers = blocked.map(item => item.blockedUserIdx);
+    if (blockedUsers.length === 0) {
+      blockedUsers = [-1];
     }
 
-    let query = Story.createQueryBuilder()
-      .where('userIdx NOT IN (:...blockedUserIdxs)', {
-        blockedUserIdxs
-      })
-      .take(itemsPerPage.GET_ALL_STORY);
-    if (cursor) {
-      query = query.skip(parseInt(cursor) + itemsPerPage.GET_ALL_STORY);
-    }
-
-    const nextStory = await query.getOne();
-
-    let nextCursor = null;
-    if (nextStory) {
-      nextCursor = cursor
-        ? String(parseInt(cursor) + itemsPerPage.GET_ALL_STORY)
-        : String(itemsPerPage.GET_ALL_STORY);
-    }
-
-    const totalStoryCnt = await Story.createQueryBuilder('story')
+    const nextCursor = await getStoryNextCursor(cursor, sort, blockedUsers);
+    const totalStoryCnt = await Story.createQueryBuilder()
       .select()
-      .where('userIdx NOT IN (:...blockedUserIdxs)', {
-        blockedUserIdxs
-      })
+      .where('userIdx NOT IN (:...blockedUsers)', { blockedUsers })
       .getCount();
 
     const meta = {
@@ -244,6 +236,110 @@ const getStoriesMeta = async (userIdx: number | undefined, cursor: string | unde
       ErrorType.INTERAL_SERVER_ERROR.code,
       []
     );
+  }
+};
+
+const getStoryNextCursor = async (
+  cursor: string | undefined,
+  sort: string,
+  blockedUsers: number[]
+) => {
+  if (sort === sortTypes.RECENTLY) {
+    let query = Story.createQueryBuilder()
+      .select()
+      .limit(itemsPerPage.GET_ALL_STORY)
+      .where('userIdx NOT IN (:...blockedUsers)', {
+        blockedUsers
+      })
+      .orderBy('storyIdx', 'DESC');
+
+    if (cursor) {
+      query = query.andWhere('storyIdx < :storyIdx', { storyIdx: cursor });
+    }
+
+    const curPageStorys = await query.getMany();
+    const nextCursor = curPageStorys[curPageStorys.length - 1]?.storyIdx;
+    if (!nextCursor) {
+      return null;
+    }
+
+    const nextStorys = await Story.createQueryBuilder()
+      .select()
+      .orderBy('storyIdx', 'DESC')
+      .where('storyIdx < :storyIdx', { storyIdx: nextCursor })
+      .andWhere('userIdx NOT IN (:...blockedUsers)', {
+        blockedUsers
+      })
+      .getOne();
+
+    return nextStorys ? String(nextCursor) : null;
+  } else if (sort === sortTypes.POPULAR) {
+    let query = Story.createQueryBuilder('story')
+      .select('story.storyIdx AS storyIdx')
+      .leftJoin(
+        qb =>
+          qb
+            .select('storyLike.storyIdx', 'storyIdx')
+            .addSelect('COUNT(*)', 'likeCnt')
+            .from(StoryLike, 'storyLike')
+            .groupBy('storyLike.storyIdx'),
+        'getLikeCnt',
+        'getLikeCnt.storyIdx = story.storyIdx'
+      )
+      .where('userIdx NOT IN (:...blockedUsers)', {
+        blockedUsers
+      })
+      .addSelect('IFNULL(getLikeCnt.likeCnt, 0)', 'likeCnt')
+      .addSelect(
+        `CONCAT(LPAD(IFNULL(getLikeCnt.likeCnt, 0), 10, '0'), LPAD(IFNULL(story.storyIdx, 0), 10, '0'))`,
+        'customCursor'
+      )
+      .orderBy('likeCnt', 'DESC')
+      .addOrderBy('story.storyIdx', 'DESC')
+      .limit(itemsPerPage.GET_ALL_STORY);
+
+    if (cursor) {
+      query = query.andWhere(
+        `CONCAT(LPAD(IFNULL(getLikeCnt.likeCnt, 0), 10, '0'), LPAD(IFNULL(story.storyIdx, 0), 10, '0')) < :cursor`,
+        { cursor }
+      );
+    }
+
+    const curPageStorys = await query.getRawMany();
+    const nextCursor = curPageStorys[curPageStorys.length - 1]?.customCursor;
+    if (!nextCursor) {
+      return null;
+    }
+
+    const nextStorys = await Story.createQueryBuilder('story')
+      .select()
+      .leftJoin(
+        qb =>
+          qb
+            .select('storyLike.storyIdx', 'storyIdx')
+            .addSelect('COUNT(*)', 'likeCnt')
+            .from(StoryLike, 'storyLike')
+            .groupBy('storyLike.storyIdx'),
+        'getLikeCnt',
+        'getLikeCnt.storyIdx = story.storyIdx'
+      )
+      .addSelect('IFNULL(getLikeCnt.likeCnt, 0)', 'likeCnt')
+      .addSelect(
+        `CONCAT(LPAD(IFNULL(getLikeCnt.likeCnt, 0), 10, '0'), LPAD(IFNULL(story.storyIdx, 0), 10, '0'))`,
+        'customCursor'
+      )
+      .where(
+        `CONCAT(LPAD(IFNULL(getLikeCnt.likeCnt, 0), 10, '0'), LPAD(IFNULL(story.storyIdx, 0), 10, '0')) < :nextCursor`,
+        { nextCursor }
+      )
+      .andWhere('userIdx NOT IN (:...blockedUsers)', {
+        blockedUsers
+      })
+      .orderBy('likeCnt', 'DESC')
+      .addOrderBy('story.storyIdx', 'DESC')
+      .getOne();
+
+    return nextStorys ? nextCursor : null;
   }
 };
 

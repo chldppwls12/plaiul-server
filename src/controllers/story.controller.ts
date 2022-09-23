@@ -40,7 +40,7 @@ const getStories = async (req: Request, res: Response) => {
 
   try {
     const result = await storyService.getStories(userIdx, sort, cursor);
-    const meta = await storyService.getStoriesMeta(userIdx, cursor);
+    const meta = await storyService.getStoriesMeta(userIdx, sort, cursor);
     return res.status(httpStatusCode.OK).json(successResWithMeta(result, meta));
   } catch (err: any) {
     return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
