@@ -1,5 +1,6 @@
+import { Brackets } from 'typeorm';
 import { itemsPerPage, sortTypes } from '@utils/constants';
-import { Block, Qna, QnaComment, QnaLike, QnaReqReport } from '@entities/index';
+import { Block, Qna, QnaComment, QnaLike, QnaReqReport, CommentReqReport } from '@entities/index';
 import AppDataSource from '@config/data-source';
 import { CustomError, ErrorType } from '@utils/error';
 import httpStatusCode from '@utils/httpStatusCode';
@@ -662,8 +663,271 @@ const changeQnaLike = async (userIdx: number, qnaIdx: number) => {
       result = { isLiked: true };
     }
   });
+  return result;
+};
+
+/**
+ *
+ * @param userIdx
+ * @param qnaCommentIdx
+ * @desc qna 댓글 기존 신고 체크
+ */
+const canReportQnaComment = async (userIdx: number, qnaCommentIdx: number) => {
+  const isReported = await CommentReqReport.createQueryBuilder()
+    .select()
+    .where('qnaCommentIdx = :qnaCommentIdx', { qnaCommentIdx })
+    .andWhere('userIdx = :userIdx', { userIdx })
+    .getOne();
+
+  if (isReported) {
+    throw new CustomError(
+      httpStatusCode.BAD_REQUEST,
+      ErrorType.ALREADY_REPORT.message,
+      ErrorType.ALREADY_REPORT.code,
+      []
+    );
+  }
+};
+
+/**
+ *
+ * @param userIdx
+ * @param qnaCommentIdx
+ * @param reasonIdx
+ * @param etcReason
+ * @desc qna 댓글 신고
+ */
+const reportQnaComment = async (
+  userIdx: number,
+  qnaCommentIdx: number,
+  reasonIdx: number,
+  etcReason: string | undefined
+) => {
+  const reason = getReportReason(reasonIdx);
+  try {
+    await AppDataSource.manager.transaction(async transactionalEntityManager => {
+      transactionalEntityManager
+        .createQueryBuilder()
+        .insert()
+        .into(CommentReqReport)
+        .values({
+          userIdx,
+          qnaCommentIdx,
+          reason,
+          etcReason
+        })
+        .execute();
+    });
+  } catch (err: any) {
+    throw new CustomError(
+      httpStatusCode.INTERAL_SERVER_ERROR,
+      ErrorType.INTERAL_SERVER_ERROR.message,
+      ErrorType.INTERAL_SERVER_ERROR.code,
+      []
+    );
+  }
+};
+
+/**
+ *
+ * @param userIdx
+ * @param cursor
+ * @param qnaIdx
+ * @desc Qna 댓글 조회
+ */
+const getQnaComments = async (
+  userIdx: number | undefined,
+  cursor: string | undefined,
+  qnaIdx: number
+) => {
+  let result: any = [];
+  const { userIdx: qnaUserIdx } = await Qna.createQueryBuilder()
+    .select('userIdx')
+    .where('qnaIdx = :qnaIdx', { qnaIdx })
+    .getRawOne();
+
+  const blocked = await Block.createQueryBuilder()
+    .select('blockedUserIdx')
+    .where('userIdx = :userIdx', { userIdx })
+    .getRawMany();
+
+  let blockedUsers = blocked.map(item => item.blockedUserIdx);
+  if (blockedUsers.length === 0) {
+    blockedUsers = [-1];
+  }
+
+  let query = QnaComment.createQueryBuilder('qnaComment')
+    .select([
+      'qnaComment.qnaCommentIdx AS commentIdx',
+      'qnaComment.comment AS content',
+      'qnaComment.createdAt AS createdAt',
+      'user.userIdx AS userIdx',
+      'user.nickname AS nickname',
+      'user.profile AS profile',
+      'qnaComment.deletedAt AS deletedAt'
+    ])
+    .leftJoin('qnaComment.user', 'user')
+    .leftJoin(
+      qb =>
+        qb
+          .select('qnaRecomment.parentCommentIdx', 'parentCommentIdx')
+          .addSelect('COUNT(*)', 'recommentCnt')
+          .from(QnaComment, 'qnaRecomment')
+          .groupBy('qnaRecomment.parentCommentIdx'),
+      'getQnaRecomment',
+      'getQnaRecomment.parentCommentIdx = qnaComment.qnaCommentIdx'
+    )
+    .addSelect('IFNULL(recommentCnt, 0)', 'recommentCnt')
+    .where('qnaComment.qnaIdx = :qnaIdx', { qnaIdx })
+    .andWhere('qnaComment.parentCommentIdx IS NULL')
+    .andWhere(
+      new Brackets(qb => {
+        qb.where('qnaComment.deletedAt IS NULL').orWhere(
+          'qnaComment.deletedAt IS NOT NULL AND recommentCnt > 0'
+        );
+      })
+    );
+
+  if (cursor) {
+    query = query.andWhere('qnaComment.qnaCommentIdx > :cursor', { cursor });
+  }
+
+  const parentComments = await query.withDeleted().limit(itemsPerPage.GET_QNA_COMMENT).getRawMany();
+  for (let parentComment of parentComments) {
+    const { commentIdx: qnaCommentIdx } = parentComment;
+    const reComments = await QnaComment.createQueryBuilder('qnaRecomment')
+      .select([
+        'qnaRecomment.qnaCommentIdx AS commentIdx',
+        'qnaRecomment.comment AS content',
+        'qnaRecomment.createdAt AS createdAt',
+        'user.userIdx AS userIdx',
+        'user.nickname AS nickname',
+        'user.profile AS profile'
+      ])
+      .leftJoin('qnaRecomment.user', 'user')
+      .where('qnaRecomment.parentCommentIdx = :qnaCommentIdx', { qnaCommentIdx })
+      .getRawMany();
+
+    let reCommentsResult = [];
+    for (let reComment of reComments) {
+      reCommentsResult.push({
+        commentIdx: reComment.commentIdx,
+        content: reComment.content,
+        createdAt: reComment.createdAt,
+        isWriter: reComment.userIdx === qnaUserIdx ? true : false,
+        isUserComment: reComment.userIdx === userIdx ? true : false,
+        isDeleted: false,
+        isBlocked: blockedUsers.includes(reComment.userIdx),
+        user: {
+          userIdx: reComment.userIdx,
+          nickname: reComment.nickname,
+          profile: reComment.profile === '' ? null : reComment.profile
+        }
+      });
+    }
+    result.push({
+      commentIdx: parentComment.commentIdx,
+      content: parentComment.content,
+      createdAt: parentComment.createdAt,
+      isWriter: parentComment.userIdx === qnaUserIdx ? true : false,
+      isUserComment: parentComment.userIdx === userIdx ? true : false,
+      isDeleted: parentComment.deletedAt ? true : false,
+      isBlocked: blockedUsers.includes(parentComment.userIdx),
+      user: {
+        userIdx: parentComment.userIdx,
+        nickname: parentComment.nickname,
+        profile: parentComment.profile === '' ? null : parentComment.profile
+      },
+      reComments: reCommentsResult
+    });
+  }
 
   return result;
+};
+
+/**
+ *
+ * @param qnaIdx
+ * @param cursor
+ * @desc qna 댓글 meta
+ */
+const getQnaCommentsMeta = async (qnaIdx: number, cursor: string | undefined) => {
+  const nextCursor = await getQnaCommentNextCursor(qnaIdx, cursor);
+
+  const meta = {
+    cursor: nextCursor
+  };
+
+  return meta;
+};
+
+const getQnaCommentNextCursor = async (qnaIdx: number, cursor: string | undefined) => {
+  let query = QnaComment.createQueryBuilder('qnaComment')
+    .select('qnaComment.qnaCommentIdx', 'qnaCommentIdx')
+    .leftJoin(
+      qb =>
+        qb
+          .select('qnaRecomment.parentCommentIdx', 'parentCommentIdx')
+          .addSelect('COUNT(*)', 'recommentCnt')
+          .from(QnaComment, 'qnaRecomment')
+          .groupBy('qnaRecomment.parentCommentIdx'),
+      'getQnaRecomment',
+      'getQnaRecomment.parentCommentIdx = qnaComment.qnaCommentIdx'
+    )
+    .addSelect('IFNULL(recommentCnt, 0)', 'recommentCnt')
+    .where('qnaComment.qnaIdx = :qnaIdx', { qnaIdx })
+    .andWhere('qnaComment.parentCommentIdx IS NULL')
+    .andWhere(
+      new Brackets(qb => {
+        qb.where('qnaComment.deletedAt IS NULL').orWhere(
+          'qnaComment.deletedAt IS NOT NULL AND recommentCnt > 0'
+        );
+      })
+    );
+
+  if (cursor) {
+    query = query.andWhere('qnaComment.qnaCommentIdx > :cursor', { cursor });
+  }
+
+  const curPageQnaParComments = await query
+    .withDeleted()
+    .limit(itemsPerPage.GET_QNA_COMMENT)
+    .getRawMany();
+
+  const nextCursor = curPageQnaParComments[curPageQnaParComments.length - 1]?.qnaCommentIdx;
+
+  if (!nextCursor) {
+    return null;
+  }
+
+  const nextQnaParComments = await QnaComment.createQueryBuilder('qnaComment')
+    .select('qnaComment.qnaCommentIdx', 'qnaCommentIdx')
+    .leftJoin(
+      qb =>
+        qb
+          .select('qnaRecomment.parentCommentIdx', 'parentCommentIdx')
+          .addSelect('COUNT(*)', 'recommentCnt')
+          .from(QnaComment, 'qnaRecomment')
+          .groupBy('qnaRecomment.parentCommentIdx'),
+      'getQnaRecomment',
+      'getQnaRecomment.parentCommentIdx = qnaComment.qnaCommentIdx'
+    )
+    .addSelect('IFNULL(recommentCnt, 0)', 'recommentCnt')
+    .where('qnaComment.qnaIdx = :qnaIdx', { qnaIdx })
+    .andWhere('qnaComment.parentCommentIdx IS NULL')
+    .andWhere(
+      new Brackets(qb => {
+        qb.where('qnaComment.deletedAt IS NULL').orWhere(
+          'qnaComment.deletedAt IS NOT NULL AND recommentCnt > 0'
+        );
+      })
+    )
+    .andWhere('qnaComment.qnaCommentIdx > :cursor', { cursor: nextCursor })
+    .withDeleted()
+    .limit(itemsPerPage.GET_QNA_COMMENT)
+    .getRawOne();
+
+  return nextQnaParComments ? String(nextCursor) : null;
 };
 
 export default {
@@ -683,5 +947,9 @@ export default {
   isUserQnaComment,
   updateQnaComment,
   deleteQnaComment,
-  changeQnaLike
+  changeQnaLike,
+  canReportQnaComment,
+  reportQnaComment,
+  getQnaComments,
+  getQnaCommentsMeta
 };
