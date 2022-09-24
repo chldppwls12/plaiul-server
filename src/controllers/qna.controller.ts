@@ -287,6 +287,34 @@ const reportQnaComment = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ *
+ * @routes GET /api/qna/:qnaIdx/comments
+ * @desc qna 댓글 조회
+ */
+const getQnaComments = async (req: Request, res: Response) => {
+  const qnaIdx = parseInt(req.params.qnaIdx);
+  const cursor = req.query?.cursor as string;
+  const userIdx = req?.userIdx;
+
+  try {
+    await qnaService.isExistQnaIdx(qnaIdx);
+    const result = await qnaService.getQnaComments(userIdx, cursor, qnaIdx);
+    const meta = await qnaService.getQnaCommentsMeta(qnaIdx, cursor);
+
+    return res.status(httpStatusCode.OK).json(successResWithMeta(result, meta));
+  } catch (err: any) {
+    if (err instanceof CustomError) {
+      return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+    }
+    return res
+      .status(httpStatusCode.INTERAL_SERVER_ERROR)
+      .json(
+        failRes(ErrorType.INTERAL_SERVER_ERROR.code, ErrorType.INTERAL_SERVER_ERROR.message, [])
+      );
+  }
+};
+
 export default {
   getQnas,
   createQna,
@@ -297,5 +325,6 @@ export default {
   createQnaComment,
   updateQnaComment,
   deleteQnaComment,
-  reportQnaComment
+  reportQnaComment,
+  getQnaComments
 };

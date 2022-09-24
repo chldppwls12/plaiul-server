@@ -127,4 +127,15 @@ router.post(
   qnaController.reportQnaComment
 );
 
+router.get(
+  '/:qnaIdx/comments',
+  [
+    header('authorization').optional().custom(isValidJwt),
+    param('qnaIdx').exists({ checkFalsy: true })
+  ],
+  validator,
+  authJwt,
+  qnaController.getQnaComments
+);
+
 export default router;
