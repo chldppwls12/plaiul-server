@@ -20,4 +20,9 @@ const reportType = {
   ETC: 7
 };
 
-export { sortTypes, itemsPerPage, reportType };
+const tipContentType = {
+  TEXT: 0,
+  IMAGE: 1
+};
+
+export { sortTypes, itemsPerPage, reportType, tipContentType };

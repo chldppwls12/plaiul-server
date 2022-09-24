@@ -33,6 +33,9 @@ export class Tip extends BaseEntity {
   @JoinColumn({ name: 'userIdx' })
   user: User;
 
+  @Column()
+  userIdx: number;
+
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 

@@ -27,5 +27,6 @@ const upload = (path: string) =>
   });
 
 const storyUpload = upload('story');
+const tipUpload = upload('tip');
 
-export { storyUpload };
+export { storyUpload, tipUpload };

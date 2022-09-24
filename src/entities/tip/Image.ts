@@ -15,4 +15,7 @@ export class TipImage extends BaseEntity {
   @ManyToOne(() => Tip, tip => tip.contentImages)
   @JoinColumn({ name: 'tipIdx' })
   tip: Tip;
+
+  @Column()
+  tipIdx: number;
 }

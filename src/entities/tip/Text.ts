@@ -15,4 +15,7 @@ export class TipText extends BaseEntity {
   @ManyToOne(() => Tip, tip => tip.contentTexts)
   @JoinColumn({ name: 'tipIdx' })
   tip: Tip;
+
+  @Column()
+  tipIdx: number;
 }
