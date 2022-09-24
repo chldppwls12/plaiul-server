@@ -1001,7 +1001,7 @@ const getStoryComments = async (
         'user.userIdx AS userIdx',
         'user.nickname AS nickname',
         'user.profile AS profile',
-        'storyComment.deletedAt'
+        'storyComment.deletedAt AS deletedAt'
       ])
       .leftJoin('storyComment.user', 'user')
       .leftJoin(
