@@ -1104,11 +1104,9 @@ const getStoryComments = async (
 const getStoryCommentsMeta = async (storyIdx: number, cursor: string | undefined) => {
   const nextCursor = await getStoryCommentNextCursor(storyIdx, cursor);
 
-  const meta = {
-    cursor: nextCursor
+  return {
+    nextCursor
   };
-
-  return meta;
 };
 
 const getStoryCommentNextCursor = async (storyIdx: number, cursor: string | undefined) => {

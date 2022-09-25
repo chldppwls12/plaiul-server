@@ -854,11 +854,9 @@ const getQnaComments = async (
 const getQnaCommentsMeta = async (qnaIdx: number, cursor: string | undefined) => {
   const nextCursor = await getQnaCommentNextCursor(qnaIdx, cursor);
 
-  const meta = {
-    cursor: nextCursor
+  return {
+    nextCursor
   };
-
-  return meta;
 };
 
 const getQnaCommentNextCursor = async (qnaIdx: number, cursor: string | undefined) => {
