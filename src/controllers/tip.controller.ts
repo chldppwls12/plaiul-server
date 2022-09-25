@@ -17,25 +17,42 @@ const createTip = async (req: Request, res: Response) => {
   const userIdx = req.userIdx as number;
   const { title } = req.body;
   let { textList, orderList } = req.body;
-  const files = JSON.parse(JSON.stringify(req.files));
-  const { location: thumbnail } = files.thumbnail[0];
-
-  if (textList && typeof textList === 'string') {
-    textList = [textList];
-  }
-  orderList = orderList.map((item: any) => parseInt(item, 10));
-  let imageList: string[] = [];
-  files.imageList.map((file: any) => imageList.push(file.location));
-
-  if (orderList.length !== imageList.length + textList.length) {
-    return res
-      .status(httpStatusCode.BAD_REQUEST)
-      .json(
-        failRes(ErrorType.CLIENT_ERR.code, ErrorType.CLIENT_ERR.message, ['orderList 형식 안맞음'])
-      );
-  }
 
   try {
+    const files = JSON.parse(JSON.stringify(req.files));
+    if (!files?.thumbnail)
+      return res
+        .status(httpStatusCode.BAD_REQUEST)
+        .json(
+          failRes(ErrorType.CLIENT_ERR.code, ErrorType.CLIENT_ERR.message, ['thumbnail 입력 필수'])
+        );
+
+    const { location: thumbnail } = files.thumbnail[0];
+
+    if (textList === undefined) textList = [];
+    if (typeof textList === 'string') textList = [textList];
+
+    orderList = orderList.map((item: any) => parseInt(item, 10));
+    const imageList = files.imageList.map((file: any) => file.location);
+
+    const orderListInfo = _.countBy(orderList);
+
+    if (
+      (orderListInfo[tipContentType.TEXT] &&
+        orderListInfo[tipContentType.TEXT] !== textList.length) ||
+      (orderListInfo[tipContentType.IMAGE] &&
+        orderListInfo[tipContentType.IMAGE] !== imageList.length) ||
+      orderList.length !== imageList.length + textList.length
+    ) {
+      return res
+        .status(httpStatusCode.BAD_REQUEST)
+        .json(
+          failRes(ErrorType.CLIENT_ERR.code, ErrorType.CLIENT_ERR.message, [
+            'orderList 형식 안맞음'
+          ])
+        );
+    }
+
     const result = await tipService.createTip(
       userIdx,
       title,

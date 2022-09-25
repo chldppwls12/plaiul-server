@@ -17,8 +17,8 @@ router.post(
   [
     header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
     body('title').exists({ checkFalsy: true }),
-    body('textList').exists(),
-    body('orderList').exists()
+    body('textList').optional(),
+    body('orderList').exists({ checkFalsy: true }).isArray()
   ],
   validator,
   authJwt,
