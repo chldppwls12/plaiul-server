@@ -436,6 +436,49 @@ const getTipsNextCursor = async (cursor: string | undefined) => {
   return nextTips ? String(nextCursor) : null;
 };
 
+const getBestTips = async () => {
+  const bestTips = await Tip.createQueryBuilder('tip')
+    .select([
+      'tip.tipIdx AS tipIdx',
+      'tip.title AS title',
+      'tip.thumbnail AS thumbnail',
+      'user.userIdx AS userIdx',
+      'user.nickname AS nickname',
+      'user.profile AS profile'
+    ])
+    .leftJoin('tip.user', 'user')
+    .leftJoin(
+      qb =>
+        qb
+          .select(['tipIdx AS tipIdx', 'COUNT(*) AS likeCnt'])
+          .from(TipLike, 'tipLike')
+          .groupBy('tipLike.tipIdx'),
+      'getCnt',
+      'getCnt.tipIdx = tip.tipIdx'
+    )
+    .addSelect('IFNULL(getCnt.likeCnt, 0)', 'likeCnt')
+    .limit(5)
+    .orderBy('getCnt.likeCnt', 'DESC')
+    .addOrderBy('tip.tipIdx', 'DESC')
+    .getRawMany();
+
+  bestTips.forEach(bestTip => {
+    delete bestTip.likeCnt;
+
+    bestTip.user = {
+      userIdx: bestTip.userIdx,
+      nickname: bestTip.nickname,
+      profile: bestTip.profile !== '' ? bestTip.profile : null
+    };
+
+    delete bestTip.userIdx;
+    delete bestTip.nickname;
+    delete bestTip.profile;
+  });
+
+  return bestTips;
+};
+
 export default {
   createTip,
   isExistTip,
@@ -445,5 +488,6 @@ export default {
   deleteTip,
   changeTipLike,
   getTips,
-  getTipsMeta
+  getTipsMeta,
+  getBestTips
 };

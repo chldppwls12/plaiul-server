@@ -254,4 +254,30 @@ const getTips = async (req: Request, res: Response) => {
   }
 };
 
-export default { createTip, getTip, updateTip, deleteTip, changeTipLike, getTips };
+/**
+ *
+ * @routes GET /api/tips/best
+ * @desc grower's tip 전체 조회
+ * @access public
+ */
+const getBestTips = async (req: Request, res: Response) => {
+  const userIdx = req?.userIdx;
+
+  try {
+    const result = await tipService.getBestTips();
+
+    return res.status(httpStatusCode.OK).json(successRes(result));
+  } catch (err: any) {
+    if (err instanceof CustomError) {
+      return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+    } else {
+      return res
+        .status(httpStatusCode.INTERAL_SERVER_ERROR)
+        .json(
+          failRes(ErrorType.INTERAL_SERVER_ERROR.code, ErrorType.INTERAL_SERVER_ERROR.message, [])
+        );
+    }
+  }
+};
+
+export default { createTip, getTip, updateTip, deleteTip, changeTipLike, getTips, getBestTips };

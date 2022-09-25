@@ -26,6 +26,14 @@ router.post(
 );
 
 router.get(
+  '/best',
+  [header('authorization').optional().custom(isValidJwt)],
+  validator,
+  authJwt,
+  tipController.getBestTips
+);
+
+router.get(
   '/:tipIdx',
   [header('authorization').optional().custom(isValidJwt)],
   validator,
@@ -73,7 +81,7 @@ router.patch(
 );
 
 router.get(
-  '',
+  '/',
   [header('authorization').optional().custom(isValidJwt), query('cursor').optional()],
   validator,
   authJwt,
