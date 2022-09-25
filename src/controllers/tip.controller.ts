@@ -33,7 +33,8 @@ const createTip = async (req: Request, res: Response) => {
     if (typeof textList === 'string') textList = [textList];
 
     orderList = orderList.map((item: any) => parseInt(item, 10));
-    const imageList = files.imageList.map((file: any) => file.location);
+
+    const imageList = files?.imageList ? files.imageList.map((file: any) => file.location) : [];
 
     const orderListInfo = _.countBy(orderList);
 
@@ -125,10 +126,7 @@ const updateTip = async (req: Request, res: Response) => {
     if (orderList === undefined) orderList = [];
     orderList = orderList.map((item: any) => parseInt(item, 10));
 
-    let imageList: string[] = [];
-    if (files?.imageList) {
-      imageList = files.imageList.map((file: any) => file.location);
-    }
+    const imageList = files?.imageList ? files.imageList.map((file: any) => file.location) : [];
 
     const orderListInfo = _.countBy(orderList);
 
