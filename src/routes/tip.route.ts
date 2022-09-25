@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authJwt } from '@middlewares/token';
-import { body, header } from 'express-validator';
+import { body, header, param } from 'express-validator';
 import validator from '@middlewares/validator';
 import { isValidJwt } from '@middlewares/token';
 import { tipUpload } from '@utils/multer';
@@ -48,6 +48,17 @@ router.patch(
   validator,
   authJwt,
   tipController.updateTip
+);
+
+router.delete(
+  '/:tipIdx',
+  [
+    header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
+    param('tipIdx').exists({ checkFalsy: true })
+  ],
+  validator,
+  authJwt,
+  tipController.deleteTip
 );
 
 export default router;

@@ -171,4 +171,33 @@ const updateTip = async (req: Request, res: Response) => {
   }
 };
 
-export default { createTip, getTip, updateTip };
+/**
+ *
+ * @routes DELETE /api/tips/:tipIdx
+ * @desc grower's tip 삭제
+ * @access private
+ */
+const deleteTip = async (req: Request, res: Response) => {
+  const tipIdx = parseInt(req.params.tipIdx);
+  const userIdx = req.userIdx as number;
+
+  try {
+    await tipService.isExistTip(tipIdx);
+    await tipService.isUserTip(userIdx, tipIdx);
+    await tipService.deleteTip(tipIdx);
+
+    return res.status(httpStatusCode.OK).json(successRes({ deleted: true }));
+  } catch (err: any) {
+    if (err instanceof CustomError) {
+      return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+    } else {
+      return res
+        .status(httpStatusCode.INTERAL_SERVER_ERROR)
+        .json(
+          failRes(ErrorType.INTERAL_SERVER_ERROR.code, ErrorType.INTERAL_SERVER_ERROR.message, [])
+        );
+    }
+  }
+};
+
+export default { createTip, getTip, updateTip, deleteTip };

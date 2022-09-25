@@ -260,4 +260,20 @@ const updateTip = async (
   });
 };
 
-export default { createTip, isExistTip, getTip, isUserTip, updateTip };
+/**
+ *
+ * @param tipIdx
+ * @desc tip 삭제
+ */
+const deleteTip = async (tipIdx: number) => {
+  await AppDataSource.transaction(async transactionalEntityManager => {
+    await transactionalEntityManager
+      .createQueryBuilder()
+      .from(Tip, 'tip')
+      .where('tipIdx = :tipIdx', { tipIdx })
+      .softDelete()
+      .execute();
+  });
+};
+
+export default { createTip, isExistTip, getTip, isUserTip, updateTip, deleteTip };
