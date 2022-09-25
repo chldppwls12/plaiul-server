@@ -276,4 +276,47 @@ const deleteTip = async (tipIdx: number) => {
   });
 };
 
-export default { createTip, isExistTip, getTip, isUserTip, updateTip, deleteTip };
+/**
+ *
+ * @param userIdx
+ * @param tipIdx
+ * @desc tip 좋아요 여부 변경
+ */
+const changeTipLike = async (userIdx: number, tipIdx: number) => {
+  const curIsLiked = await TipLike.createQueryBuilder()
+    .select()
+    .where('tipIdx = :tipIdx', { tipIdx })
+    .andWhere('userIdx = :userIdx', { userIdx })
+    .getOne();
+
+  let isLiked;
+  await AppDataSource.transaction(async transactionalEntityManager => {
+    if (curIsLiked) {
+      await transactionalEntityManager
+        .createQueryBuilder()
+        .delete()
+        .from(TipLike)
+        .where('userIdx = :userIdx', { userIdx })
+        .andWhere('tipIdx = :tipIdx', { tipIdx })
+        .execute();
+
+      isLiked = false;
+    } else {
+      await transactionalEntityManager
+        .createQueryBuilder()
+        .insert()
+        .into(TipLike)
+        .values({
+          tipIdx,
+          userIdx
+        })
+        .execute();
+
+      isLiked = true;
+    }
+  });
+
+  return { isLiked };
+};
+
+export default { createTip, isExistTip, getTip, isUserTip, updateTip, deleteTip, changeTipLike };

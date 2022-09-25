@@ -61,4 +61,15 @@ router.delete(
   tipController.deleteTip
 );
 
+router.patch(
+  '/:tipIdx/like',
+  [
+    header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
+    param('tipIdx').exists({ checkFalsy: true })
+  ],
+  validator,
+  authJwt,
+  tipController.changeTipLike
+);
+
 export default router;
