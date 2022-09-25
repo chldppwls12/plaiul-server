@@ -160,4 +160,104 @@ const getTip = async (userIdx: number, tipIdx: number) => {
   return tip;
 };
 
-export default { createTip, isExistTip, getTip };
+/**
+ *
+ * @param userIdx
+ * @param tipIdx
+ * @desc 유저의 tip인지
+ */
+const isUserTip = async (userIdx: number, tipIdx: number) => {
+  try {
+    await Tip.createQueryBuilder()
+      .select()
+      .where('tipIdx = :tipIdx', { tipIdx })
+      .andWhere('userIdx = :userIdx', { userIdx })
+      .getOneOrFail();
+  } catch (err: any) {
+    throw new CustomError(
+      httpStatusCode.UNAUTHORIZED,
+      ErrorType.UNAUTHORIZED.message,
+      ErrorType.UNAUTHORIZED.code,
+      []
+    );
+  }
+};
+
+/**
+ *
+ * @param tipIdx
+ * @param title
+ * @param thumbnail
+ * @param textList
+ * @param imageList
+ * @param orderList
+ * @desc tip 수정
+ */
+const updateTip = async (
+  tipIdx: number,
+  title: string | undefined,
+  thumbnail: string | undefined,
+  textList: string[] | [],
+  imageList: string[] | [],
+  orderList: number[] | []
+) => {
+  await AppDataSource.transaction(async transactionalEntityManager => {
+    if (title || thumbnail) {
+      await transactionalEntityManager.query(
+        `UPDATE tip SET title = IFNULL(?, title), thumbnail = IFNULL(?, thumbnail)
+        WHERE tipIdx = ?`,
+        [title, thumbnail, tipIdx]
+      );
+    }
+
+    if (textList.length > 0) {
+      await transactionalEntityManager
+        .createQueryBuilder()
+        .delete()
+        .from(TipText)
+        .where('tipIdx = :tipIdx', { tipIdx })
+        .execute();
+    }
+    if (imageList.length > 0) {
+      await transactionalEntityManager
+        .createQueryBuilder()
+        .delete()
+        .from(TipImage)
+        .where('tipIdx = :tipIdx', { tipIdx })
+        .execute();
+    }
+
+    let textIdx = 0;
+    let imageIdx = 0;
+
+    for (let i = 0; i < orderList.length; i++) {
+      if (orderList[i] === tipContentType.TEXT) {
+        await transactionalEntityManager
+          .createQueryBuilder()
+          .insert()
+          .into(TipText)
+          .values({
+            content: textList[textIdx],
+            order: i,
+            tipIdx
+          })
+          .execute();
+        textIdx += 1;
+      } else if (orderList[i] === tipContentType.IMAGE) {
+        await transactionalEntityManager
+          .createQueryBuilder()
+          .insert()
+          .into(TipImage)
+          .values({
+            url: imageList[imageIdx],
+            order: i,
+            tipIdx
+          })
+          .execute();
+        imageIdx += 1;
+      }
+    }
+  });
+};
+
+export default { createTip, isExistTip, getTip, isUserTip, updateTip };

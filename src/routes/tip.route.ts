@@ -33,4 +33,21 @@ router.get(
   tipController.getTip
 );
 
+router.patch(
+  '/:tipIdx',
+  tipUpload.fields([
+    { name: 'thumbnail', maxCount: 1 },
+    { name: 'imageList', maxCount: 10 }
+  ]),
+  [
+    header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
+    body('title').optional(),
+    body('textList').optional(),
+    body('orderList').optional().isArray()
+  ],
+  validator,
+  authJwt,
+  tipController.updateTip
+);
+
 export default router;
