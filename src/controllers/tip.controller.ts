@@ -2,7 +2,7 @@ import * as _ from 'lodash';
 import { Request, Response } from 'express';
 import { CustomError } from '@utils/error';
 import httpStatusCode from '@utils/httpStatusCode';
-import { failRes, successRes } from '@utils/response';
+import { failRes, successRes, successResWithMeta } from '@utils/response';
 import { ErrorType } from '@utils/error';
 import { tipService } from '@services/index';
 import { tipContentType } from '@utils/constants';
@@ -229,4 +229,31 @@ const changeTipLike = async (req: Request, res: Response) => {
   }
 };
 
-export default { createTip, getTip, updateTip, deleteTip, changeTipLike };
+/**
+ *
+ * @routes GET /api/tips
+ * @desc grower's tip 전체 조회
+ * @access public
+ */
+const getTips = async (req: Request, res: Response) => {
+  const userIdx = req?.userIdx;
+  const cursor = req.query?.cursor as string;
+  try {
+    const result = await tipService.getTips(userIdx, cursor);
+    const meta = await tipService.getTipsMeta(cursor);
+
+    return res.status(httpStatusCode.OK).json(successResWithMeta(result, meta));
+  } catch (err: any) {
+    if (err instanceof CustomError) {
+      return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+    } else {
+      return res
+        .status(httpStatusCode.INTERAL_SERVER_ERROR)
+        .json(
+          failRes(ErrorType.INTERAL_SERVER_ERROR.code, ErrorType.INTERAL_SERVER_ERROR.message, [])
+        );
+    }
+  }
+};
+
+export default { createTip, getTip, updateTip, deleteTip, changeTipLike, getTips };

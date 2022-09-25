@@ -2,7 +2,7 @@ import * as _ from 'lodash';
 import { CustomError, ErrorType } from '@utils/error';
 import AppDataSource from '@config/data-source';
 import { Tip, TipText, TipImage, TipLike } from '@entities/index';
-import { tipContentType } from '@utils/constants';
+import { itemsPerPage, tipContentType } from '@utils/constants';
 import httpStatusCode from '@utils/httpStatusCode';
 
 /**
@@ -319,4 +319,131 @@ const changeTipLike = async (userIdx: number, tipIdx: number) => {
   return { isLiked };
 };
 
-export default { createTip, isExistTip, getTip, isUserTip, updateTip, deleteTip, changeTipLike };
+/**
+ *
+ * @param userIdx
+ * @param cursor
+ * @desc tip 전체 조회
+ */
+const getTips = async (userIdx: number | undefined, cursor: string | undefined) => {
+  let query = Tip.createQueryBuilder('tip')
+    .select([
+      'tip.tipIdx AS tipIdx',
+      'tip.title AS title',
+      'tip.thumbnail AS thumbnail',
+      'user.userIdx AS userIdx',
+      'user.nickname AS nickname',
+      'user.profile AS profile'
+    ])
+    .leftJoin('tip.user', 'user')
+    .leftJoin(
+      qb =>
+        qb
+          .select('tipIdx', 'tipIdx')
+          .addSelect('COUNT(*)', 'likeCnt')
+          .from(TipLike, 'tipLike')
+          .groupBy('tipLike.tipIdx'),
+      'getCnt',
+      'getCnt.tipIdx = tip.tipIdx'
+    )
+    .addSelect('IFNULL(getCnt.likeCnt, 0)', 'likeCnt');
+
+  if (cursor) {
+    query = query.andWhere('tip.tipIdx < :cursor', { cursor });
+  }
+
+  const tips = await query
+    .limit(itemsPerPage.GET_ALL_TIP)
+    .orderBy('tip.tipIdx', 'DESC')
+    .getRawMany();
+
+  for (let tip of tips) {
+    const { tipIdx } = tip;
+    tip.user = {
+      userIdx: tip.userIdx,
+      nickname: tip.nickname,
+      profile: tip.profile !== '' ? tip.profile : null
+    };
+
+    delete tip.userIdx;
+    delete tip.nickname;
+    delete tip.profile;
+
+    tip.isLiked = false;
+    if (userIdx) {
+      const isLiked = await TipLike.createQueryBuilder()
+        .select()
+        .where('tipIdx = :tipIdx', { tipIdx })
+        .andWhere('userIdx = :userIdx', { userIdx })
+        .getOne();
+
+      tip.isLiked = isLiked ? true : false;
+    }
+  }
+
+  return tips;
+};
+
+/**
+ *
+ * @param cursor
+ * @desc tip 관련 meta data
+ */
+const getTipsMeta = async (cursor: string | undefined) => {
+  const nextCursor = await getTipsNextCursor(cursor);
+
+  return {
+    nextCursor
+  };
+};
+
+const getTipsNextCursor = async (cursor: string | undefined) => {
+  let query = Tip.createQueryBuilder('tip')
+    .select(['tip.tipIdx AS tipIdx', 'tip.title AS title', 'tip.thumbnail AS thumbnail'])
+    .leftJoin(
+      qb =>
+        qb
+          .select('tipIdx', 'tipIdx')
+          .addSelect('COUNT(*)', 'likeCnt')
+          .from(TipLike, 'tipLike')
+          .groupBy('tipLike.tipIdx'),
+      'getCnt',
+      'getCnt.tipIdx = tip.tipIdx'
+    )
+    .addSelect('IFNULL(getCnt.likeCnt, 0)', 'likeCnt');
+
+  if (cursor) {
+    query = query.andWhere('tip.tipIdx < :cursor', { cursor });
+  }
+
+  const curPageTips = await query
+    .limit(itemsPerPage.GET_ALL_TIP)
+    .orderBy('tip.tipIdx', 'DESC')
+    .getRawMany();
+
+  const nextCursor = curPageTips[curPageTips.length - 1]?.tipIdx;
+  if (!nextCursor) {
+    return null;
+  }
+
+  const nextTips = await Tip.createQueryBuilder()
+    .select()
+    .limit(itemsPerPage.GET_ALL_TIP)
+    .orderBy('tipIdx', 'DESC')
+    .where('tipIdx < :tipIdx', { tipIdx: nextCursor })
+    .getOne();
+
+  return nextTips ? String(nextCursor) : null;
+};
+
+export default {
+  createTip,
+  isExistTip,
+  getTip,
+  isUserTip,
+  updateTip,
+  deleteTip,
+  changeTipLike,
+  getTips,
+  getTipsMeta
+};

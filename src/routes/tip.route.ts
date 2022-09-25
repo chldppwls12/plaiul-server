@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authJwt } from '@middlewares/token';
-import { body, header, param } from 'express-validator';
+import { body, header, param, query } from 'express-validator';
 import validator from '@middlewares/validator';
 import { isValidJwt } from '@middlewares/token';
 import { tipUpload } from '@utils/multer';
@@ -70,6 +70,14 @@ router.patch(
   validator,
   authJwt,
   tipController.changeTipLike
+);
+
+router.get(
+  '',
+  [header('authorization').optional().custom(isValidJwt), query('cursor').optional()],
+  validator,
+  authJwt,
+  tipController.getTips
 );
 
 export default router;
