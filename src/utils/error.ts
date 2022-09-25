@@ -32,6 +32,7 @@ const ErrorType = {
   INVALID_COMMENTIDX: { code: 2102, message: '존재하지 않는 commentIdx' },
   INVALID_QNAIDX: { code: 2103, message: '존재하지 않는 qnaIdx' },
   INVALID_USERIDX: { code: 2104, message: '존재하지 않는 userIdx' },
+  INVALID_TIPIDX: { code: 2015, message: '존재하지 않는 tipIdx' },
 
   //3000 회원가입 및 로그인 관련
   EXIST_EMAIL: { code: 3000, message: '이미 가입한 이메일' },

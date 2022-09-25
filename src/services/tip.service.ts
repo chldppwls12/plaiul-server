@@ -1,6 +1,9 @@
+import * as _ from 'lodash';
+import { CustomError, ErrorType } from '@utils/error';
 import AppDataSource from '@config/data-source';
-import { Tip, TipText, TipImage } from '@entities/index';
+import { Tip, TipText, TipImage, TipLike } from '@entities/index';
 import { tipContentType } from '@utils/constants';
+import httpStatusCode from '@utils/httpStatusCode';
 
 /**
  *
@@ -71,4 +74,90 @@ const createTip = async (
   };
 };
 
-export default { createTip };
+/**
+ *
+ * @param tipIdx
+ * @desc 존재하는 tip인지
+ */
+const isExistTip = async (tipIdx: number) => {
+  try {
+    await Tip.createQueryBuilder().select().where('tipIdx = :tipIdx', { tipIdx }).getOneOrFail();
+  } catch (err: any) {
+    throw new CustomError(
+      httpStatusCode.BAD_REQUEST,
+      ErrorType.INVALID_TIPIDX.message,
+      ErrorType.INVALID_TIPIDX.code,
+      []
+    );
+  }
+};
+
+/**
+ *
+ * @param userIdx
+ * @param tipIdx
+ * @desc grower's tip 상세 조회
+ */
+const getTip = async (userIdx: number, tipIdx: number) => {
+  const tip = await Tip.createQueryBuilder('tip')
+    .select([
+      'tip.tipIdx AS tipIdx',
+      'tip.title AS title',
+      'tip.thumbnail AS thumbnail',
+      'tip.createdAt AS createdAt',
+      'user.userIdx AS userIdx',
+      'user.nickname AS nickname',
+      'user.profile AS profile'
+    ])
+    .leftJoin('tip.user', 'user')
+    .where('tipIdx = :tipIdx', { tipIdx })
+    .getRawOne();
+
+  tip.user = {
+    userIdx: tip.userIdx,
+    nickname: tip.nickname,
+    profile: tip.profile ? tip.profile : null
+  };
+
+  delete tip.userIdx;
+  delete tip.nickname;
+  delete tip.profile;
+
+  if (userIdx) {
+    const isLiked = await TipLike.createQueryBuilder()
+      .select()
+      .where('tipIdx = :tipIdx', { tipIdx })
+      .andWhere('userIdx = :userIdx', { userIdx })
+      .getOne();
+
+    tip.isLiked = isLiked ? true : false;
+  } else {
+    tip.isLiked = false;
+  }
+
+  const likeCnt = await TipLike.createQueryBuilder()
+    .select()
+    .where('tipIdx = :tipIdx', { tipIdx })
+    .getCount();
+  tip.likeCnt = likeCnt;
+
+  const texts = await TipText.createQueryBuilder('text')
+    .select(['1 AS type', 'text.order AS no', 'text.content AS text', 'NULL AS image'])
+    .where('tipIdx = :tipIdx', { tipIdx })
+    .getRawMany();
+
+  const images = await TipImage.createQueryBuilder('image')
+    .select(['2 AS type', 'image.order AS no', 'NULL AS text', 'image.url AS image'])
+    .where('tipIdx = :tipIdx', { tipIdx })
+    .getRawMany();
+
+  let content = [...texts, ...images];
+  content = _.sortBy(content, 'no');
+  content.forEach(item => delete item.no);
+
+  tip.content = content;
+
+  return tip;
+};
+
+export default { createTip, isExistTip, getTip };

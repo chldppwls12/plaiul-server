@@ -10,7 +10,7 @@ import {
   ManyToOne,
   JoinColumn
 } from 'typeorm';
-import { TipImage, TipText, User } from '@entities/index';
+import { TipImage, TipText, User, TipLike } from '@entities/index';
 
 @Entity()
 export class Tip extends BaseEntity {
@@ -35,6 +35,9 @@ export class Tip extends BaseEntity {
 
   @Column()
   userIdx: number;
+
+  @OneToMany(() => TipLike, tipLike => tipLike.tip)
+  likes!: TipLike[];
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;

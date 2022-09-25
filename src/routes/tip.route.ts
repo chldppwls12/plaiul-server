@@ -25,4 +25,12 @@ router.post(
   tipController.createTip
 );
 
+router.get(
+  '/:tipIdx',
+  [header('authorization').optional().custom(isValidJwt)],
+  validator,
+  authJwt,
+  tipController.getTip
+);
+
 export default router;
