@@ -273,6 +273,13 @@ const deleteTip = async (tipIdx: number) => {
       .where('tipIdx = :tipIdx', { tipIdx })
       .softDelete()
       .execute();
+
+    await transactionalEntityManager
+      .createQueryBuilder()
+      .delete()
+      .from(TipLike)
+      .where('tipIdx = :tipIdx', { tipIdx })
+      .execute();
   });
 };
 

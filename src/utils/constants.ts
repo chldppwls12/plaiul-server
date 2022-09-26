@@ -8,7 +8,8 @@ const itemsPerPage = {
   GET_STORY_COMMENT: 5,
   GET_ALL_QNA: 5,
   GET_QNA_COMMENT: 6,
-  GET_ALL_TIP: 5
+  GET_ALL_TIP: 5,
+  GET_ALL_LIKE_TIP: 5
 };
 
 const reportType = {
