@@ -106,8 +106,107 @@ const getLikedTipNextCursor = async (userIdx: number, cursor: string | undefined
   return nextLikedTips ? String(nextCursor) : null;
 };
 
+/**
+ *
+ * @param userIdx
+ * @param cursor
+ * @desc 내가 쓴 tip 조회
+ */
+const getMyTips = async (userIdx: number, cursor: string | undefined) => {
+  let query = Tip.createQueryBuilder('tip')
+    .select([
+      'tip.tipIdx AS tipIdx',
+      'tip.title AS title',
+      'tip.thumbnail AS thumbnail',
+      'tip.createdAt AS createdAt',
+      'user.userIdx AS userIdx',
+      'user.nickname AS nickname'
+    ])
+    .leftJoin('tip.user', 'user')
+    .where('tip.userIdx = :userIdx', { userIdx })
+    .orderBy('tip.tipIdx', 'DESC')
+    .limit(itemsPerPage.GET_ALL_MY_TIP);
+
+  if (cursor) {
+    query = query.andWhere('tipIdx < :cursor', { cursor });
+  }
+
+  const tips = await query.getRawMany();
+
+  let result = [];
+  for (let tip of tips) {
+    const { tipIdx } = tip;
+    const isLiked = await TipLike.createQueryBuilder()
+      .select()
+      .where('userIdx = :userIdx', { userIdx })
+      .andWhere('tipIdx = :tipIdx', { tipIdx })
+      .getOne();
+
+    const likeCnt = await TipLike.createQueryBuilder()
+      .select()
+      .where('tipIdx = :tipIdx', { tipIdx })
+      .getCount();
+
+    result.push({
+      tipIdx,
+      title: tip.title,
+      thumbnail: tip.thumbnail,
+      createdAt: tip.createdAt,
+      isLiked: isLiked ? true : false,
+      likeCnt,
+      user: {
+        userIdx: tip.userIdx,
+        nickname: tip.nickname
+      }
+    });
+  }
+
+  return result;
+};
+
+/**
+ *
+ * @param userIdx
+ * @param cursor
+ * @desc 내가 쓴 tip meta data
+ */
+const getMyTipsMetaData = async (userIdx: number, cursor: string | undefined) => {
+  const nextCursor = await getMyTipsNextCursor(userIdx, cursor);
+
+  return {
+    nextCursor
+  };
+};
+
+const getMyTipsNextCursor = async (userIdx: number, cursor: string | undefined) => {
+  let query = Tip.createQueryBuilder()
+    .select()
+    .where('userIdx = :userIdx', { userIdx })
+    .limit(itemsPerPage.GET_ALL_MY_TIP)
+    .orderBy('tipIdx', 'DESC');
+
+  if (cursor) {
+    query = query.andWhere('tipIdx < :cursor', { cursor });
+  }
+
+  const curPageMyTips = await query.getMany();
+  const nextCursor = curPageMyTips[curPageMyTips.length - 1]?.tipIdx;
+  if (!nextCursor) return null;
+
+  const nextMyTips = await Tip.createQueryBuilder()
+    .select()
+    .where('userIdx = :userIdx', { userIdx })
+    .andWhere('tipIdx < :nextCursor', { nextCursor })
+    .orderBy('tipIdx', 'DESC')
+    .getOne();
+
+  return nextMyTips ? String(nextCursor) : null;
+};
+
 export default {
   getMyPage,
   getLikedTips,
-  getLikedTipsMetaData
+  getLikedTipsMetaData,
+  getMyTips,
+  getMyTipsMetaData
 };

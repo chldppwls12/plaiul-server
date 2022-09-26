@@ -26,4 +26,15 @@ router.get(
   myPageController.getLikedTips
 );
 
+router.get(
+  '/tips',
+  [
+    header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
+    query('cursor').optional().isString()
+  ],
+  validator,
+  authJwt,
+  myPageController.getMyTips
+);
+
 export default router;

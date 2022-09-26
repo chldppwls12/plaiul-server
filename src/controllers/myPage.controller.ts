@@ -56,4 +56,31 @@ const getLikedTips = async (req: Request, res: Response) => {
   }
 };
 
-export default { getMyPage, getLikedTips };
+/**
+ *
+ * @route GET /api/my-page/tips
+ * @desc 내가 쓴 grower's tip 조회
+ * @access private
+ */
+const getMyTips = async (req: Request, res: Response) => {
+  const userIdx = req.userIdx as number;
+  const cursor = req.query?.cursor as string;
+
+  try {
+    const result = await myPageService.getMyTips(userIdx, cursor);
+    const meta = await myPageService.getMyTipsMetaData(userIdx, cursor);
+    return res.status(httpStatusCode.OK).json(successResWithMeta(result, meta));
+  } catch (err: any) {
+    if (err instanceof CustomError) {
+      return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+    } else {
+      return res
+        .status(httpStatusCode.INTERAL_SERVER_ERROR)
+        .json(
+          failRes(ErrorType.INTERAL_SERVER_ERROR.code, ErrorType.INTERAL_SERVER_ERROR.message, [])
+        );
+    }
+  }
+};
+
+export default { getMyPage, getLikedTips, getMyTips };
