@@ -34,7 +34,7 @@ export class User extends BaseEntity {
   @Column({ type: 'varchar', length: 50, unique: true })
   nickname: string;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'text', nullable: true })
   profile: string;
 
   @Column({ type: 'text' })

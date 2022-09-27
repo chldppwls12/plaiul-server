@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import validator from '@middlewares/validator';
-import { header, query } from 'express-validator';
+import { header, query, body } from 'express-validator';
 import { authJwt } from '@middlewares/token';
 import { isValidJwt } from '@middlewares/token';
 import { myPageController } from '@controllers/index';
+import { userUpload } from '@utils/multer';
 
 const router: Router = Router();
 
@@ -35,6 +36,19 @@ router.get(
   validator,
   authJwt,
   myPageController.getMyTips
+);
+
+router.patch(
+  '/profile',
+  userUpload.single('profile'),
+  [
+    header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
+    body('defaultProfile').optional().isBoolean(),
+    body('nickname').optional()
+  ],
+  validator,
+  authJwt,
+  myPageController.updateProfile
 );
 
 export default router;

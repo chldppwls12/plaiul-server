@@ -1,5 +1,6 @@
 import { User, Tip, TipLike } from '@entities/index';
 import { itemsPerPage } from '@utils/constants';
+import AppDataSource from '@config/data-source';
 
 /**
  *
@@ -203,10 +204,42 @@ const getMyTipsNextCursor = async (userIdx: number, cursor: string | undefined) 
   return nextMyTips ? String(nextCursor) : null;
 };
 
+/**
+ *
+ * @param userIdx
+ * @param profile
+ * @param defaultProfile
+ * @param nickname
+ * @desc 프로필 수정
+ */
+const updateProfile = async (
+  userIdx: number,
+  profile: string | undefined,
+  defaultProfile: boolean,
+  nickname: string | undefined
+) => {
+  await AppDataSource.manager.transaction(async transactionalEntityManager => {
+    await transactionalEntityManager.query(
+      `UPDATE user SET nickname = IFNULL(?, nickname), profile = IFNULL(?, profile)
+        WHERE userIdx = ?`,
+      [nickname, profile, userIdx]
+    );
+
+    if (defaultProfile) {
+      await transactionalEntityManager.query(
+        `UPDATE user SET profile = NULL
+        WHERE userIdx = ?`,
+        [userIdx]
+      );
+    }
+  });
+};
+
 export default {
   getMyPage,
   getLikedTips,
   getLikedTipsMetaData,
   getMyTips,
-  getMyTipsMetaData
+  getMyTipsMetaData,
+  updateProfile
 };
