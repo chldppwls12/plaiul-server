@@ -5,6 +5,7 @@ import { authJwt } from '@middlewares/token';
 import { isValidJwt } from '@middlewares/token';
 import { myPageController } from '@controllers/index';
 import { userUpload } from '@utils/multer';
+import { communityType } from '@utils/constants';
 
 const router: Router = Router();
 
@@ -49,6 +50,18 @@ router.patch(
   validator,
   authJwt,
   myPageController.updateProfile
+);
+
+router.get(
+  '/liked/community',
+  [
+    header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
+    query('type').exists({ checkFalsy: true }).isIn([communityType.STORY, communityType.QNA]),
+    query('cursor').optional().isString()
+  ],
+  validator,
+  authJwt,
+  myPageController.getLikedCommunity
 );
 
 export default router;

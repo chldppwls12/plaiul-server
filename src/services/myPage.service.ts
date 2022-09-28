@@ -1,4 +1,14 @@
-import { User, Tip, TipLike } from '@entities/index';
+import { StoryImage } from './../entities/story/Image';
+import {
+  User,
+  Tip,
+  TipLike,
+  StoryLike,
+  StoryComment,
+  QnaLike,
+  QnaComment,
+  Block
+} from '@entities/index';
 import { itemsPerPage } from '@utils/constants';
 import AppDataSource from '@config/data-source';
 
@@ -235,11 +245,279 @@ const updateProfile = async (
   });
 };
 
+/**
+ *
+ * @param userIdx
+ * @param cursor
+ * @desc 좋아요한 스토리 조회
+ */
+const getLikedStory = async (userIdx: number, cursor: string | undefined) => {
+  const blocked = await Block.createQueryBuilder()
+    .select('blockedUserIdx')
+    .where('userIdx = :userIdx', { userIdx })
+    .getRawMany();
+
+  let blockedUsers = blocked.map(item => item.blockedUserIdx);
+  if (blockedUsers.length === 0) {
+    blockedUsers = [-1];
+  }
+
+  let query = StoryLike.createQueryBuilder('storyLike')
+    .select([
+      'storyLike.storyLikeIdx AS storyLikeIdx',
+      'story.storyIdx AS storyIdx',
+      'story.title AS title',
+      'CONVERT_TZ(story.createdAt, "UTC", "Asia/Seoul") AS createdAt',
+      'story.content AS content',
+      'user.userIdx AS userIdx',
+      'user.nickname AS nickname'
+    ])
+    .leftJoin('storyLike.story', 'story')
+    .leftJoin('story.user', 'user')
+    .leftJoin(
+      qb =>
+        qb
+          .select(['storyComment.storyIdx AS storyIdx', 'COUNT(*) AS commentCnt'])
+          .from(StoryComment, 'storyComment')
+          .groupBy('storyComment.storyIdx'),
+      'getCommentCnt',
+      'getCommentCnt.storyIdx = story.storyIdx'
+    )
+    .addSelect('IFNULL(commentCnt, 0) AS commentCnt')
+    .where('storyLike.userIdx = :userIdx', { userIdx })
+    .andWhere('story.userIdx NOT IN (:...blockedUsers)', { blockedUsers })
+    .orderBy('storyLike.storyLikeIdx', 'DESC')
+    .limit(itemsPerPage.GET_ALL_LIKED_STORY);
+
+  if (cursor) {
+    query = query.andWhere('storyLikeIdx < :cursor', { cursor });
+  }
+
+  const stories = await query.getRawMany();
+
+  let result: any = [];
+  for (let story of stories) {
+    const { storyIdx } = story;
+    const getThumbnail = await StoryImage.createQueryBuilder('storyImage')
+      .select(['storyImage.url'])
+      .where('storyImage.storyIdx = :storyIdx', { storyIdx })
+      .getOne();
+
+    const likeCnt = await StoryLike.createQueryBuilder()
+      .select()
+      .where('storyIdx = :storyIdx', { storyIdx })
+      .getCount();
+
+    result.push({
+      storyIdx,
+      title: story.title,
+      thumbnail: getThumbnail?.url,
+      createdAt: story.createdAt,
+      content: story.content,
+      isLiked: true,
+      likeCnt,
+      commentCnt: story.commentCnt,
+      user: {
+        userIdx: story.userIdx,
+        nickname: story.nickname
+      }
+    });
+  }
+  return result;
+};
+
+/**
+ *
+ * @param userIdx
+ * @param cursor
+ * @returns 좋아요한 스토리 meta data 조회
+ */
+const getLikedStoryMetaData = async (userIdx: number, cursor: string | undefined) => {
+  const blocked = await Block.createQueryBuilder()
+    .select('blockedUserIdx')
+    .where('userIdx = :userIdx', { userIdx })
+    .getRawMany();
+
+  let blockedUsers = blocked.map(item => item.blockedUserIdx);
+  if (blockedUsers.length === 0) {
+    blockedUsers = [-1];
+  }
+
+  const nextCursor = await getLikedStoryNextCursor(userIdx, cursor, blockedUsers);
+
+  return {
+    nextCursor
+  };
+};
+
+const getLikedStoryNextCursor = async (
+  userIdx: number,
+  cursor: string | undefined,
+  blockedUsers: number[]
+) => {
+  let query = StoryLike.createQueryBuilder('storyLike')
+    .select()
+    .leftJoin('storyLike.story', 'story')
+    .where('storyLike.userIdx = :userIdx', { userIdx })
+    .andWhere('story.userIdx NOT IN (:...blockedUsers)', { blockedUsers })
+    .orderBy('storyLike.storyLikeIdx', 'DESC')
+    .limit(itemsPerPage.GET_ALL_LIKED_STORY);
+
+  if (cursor) {
+    query = query.andWhere('storyLikeIdx < :cursor', { cursor });
+  }
+
+  const curPageLikedStory = await query.getMany();
+  const nextCursor = curPageLikedStory[curPageLikedStory.length - 1]?.storyLikeIdx;
+  if (!nextCursor) return null;
+
+  const nextLikedStory = await StoryLike.createQueryBuilder('storyLike')
+    .select()
+    .leftJoin('storyLike.story', 'story')
+    .where('storyLike.userIdx = :userIdx', { userIdx })
+    .andWhere('storyLikeIdx < :nextCursor', { nextCursor })
+    .andWhere('story.userIdx NOT IN (:...blockedUsers)', { blockedUsers })
+    .orderBy('storyLikeIdx', 'DESC')
+    .getOne();
+
+  return nextLikedStory ? String(nextCursor) : null;
+};
+
+/**
+ *
+ * @param userIdx
+ * @param cursor
+ * @desc 좋아요한 qna 조회
+ */
+const getLikedQna = async (userIdx: number, cursor: string | undefined) => {
+  const blocked = await Block.createQueryBuilder()
+    .select('blockedUserIdx')
+    .where('userIdx = :userIdx', { userIdx })
+    .getRawMany();
+
+  let blockedUsers = blocked.map(item => item.blockedUserIdx);
+  if (blockedUsers.length === 0) {
+    blockedUsers = [-1];
+  }
+
+  let query = QnaLike.createQueryBuilder('qnaLike')
+    .select([
+      'qnaLike.qnaLikeIdx AS qnaLikeIdx',
+      'qna.qnaIdx AS qnaIdx',
+      'qna.title AS title',
+      'CONVERT_TZ(qna.createdAt, "UTC", "Asia/Seoul") AS createdAt',
+      'qna.content AS content',
+      'user.userIdx AS userIdx',
+      'user.nickname AS nickname'
+    ])
+    .leftJoin('qnaLike.qna', 'qna')
+    .leftJoin('qna.user', 'user')
+    .leftJoin(
+      qb =>
+        qb
+          .select(['qnaComment.qnaIdx AS qnaIdx', 'COUNT(*) AS commentCnt'])
+          .from(QnaComment, 'qnaComment')
+          .groupBy('qnaComment.qnaIdx'),
+      'getCommentCnt',
+      'getCommentCnt.qnaIdx = qna.qnaIdx'
+    )
+    .addSelect('IFNULL(commentCnt, 0) AS commentCnt')
+    .where('qnaLike.userIdx = :userIdx', { userIdx })
+    .andWhere('qna.userIdx NOT IN (:...blockedUsers)', { blockedUsers })
+    .orderBy('qnaLike.qnaLikeIdx', 'DESC')
+    .limit(itemsPerPage.GET_ALL_LIKED_QNA);
+
+  if (cursor) {
+    query = query.andWhere('qnaLikeIdx < :cursor', { cursor });
+  }
+
+  const qnas = await query.getRawMany();
+
+  let result: any = [];
+  for (let qna of qnas) {
+    const { qnaIdx } = qna;
+    const likeCnt = await QnaLike.createQueryBuilder()
+      .select()
+      .where('qnaIdx = :qnaIdx', { qnaIdx })
+      .getCount();
+
+    result.push({
+      qnaIdx,
+      title: qna.title,
+      content: qna.content,
+      isLiked: true,
+      likeCnt,
+      commentCnt: qna.commentCnt,
+      createdAt: qna.createdAt,
+      user: {
+        userIdx: qna.userIdx,
+        nickname: qna.nickname
+      }
+    });
+  }
+  return result;
+};
+
+const getLikedQnaMetaData = async (userIdx: number, cursor: string | undefined) => {
+  const blocked = await Block.createQueryBuilder()
+    .select('blockedUserIdx')
+    .where('userIdx = :userIdx', { userIdx })
+    .getRawMany();
+
+  let blockedUsers = blocked.map(item => item.blockedUserIdx);
+  if (blockedUsers.length === 0) {
+    blockedUsers = [-1];
+  }
+
+  const nextCursor = await getLikedQnaNextCursor(userIdx, cursor, blockedUsers);
+
+  return {
+    nextCursor
+  };
+};
+
+const getLikedQnaNextCursor = async (
+  userIdx: number,
+  cursor: string | undefined,
+  blockedUsers: number[]
+) => {
+  let query = QnaLike.createQueryBuilder('qnaLike')
+    .select()
+    .leftJoin('qnaLike.qna', 'qna')
+    .where('qnaLike.userIdx = :userIdx', { userIdx })
+    .andWhere('qna.userIdx NOT IN (:...blockedUsers)', { blockedUsers })
+    .orderBy('qnaLikeIdx', 'DESC')
+    .limit(itemsPerPage.GET_ALL_LIKED_QNA);
+
+  if (cursor) {
+    query = query.andWhere('qnaLikeIdx < :cursor', { cursor });
+  }
+
+  const curPageLikedQna = await query.getMany();
+  const nextCursor = curPageLikedQna[curPageLikedQna.length - 1]?.qnaLikeIdx;
+  if (!nextCursor) return null;
+
+  const nextLikedQna = await QnaLike.createQueryBuilder('qnaLike')
+    .select()
+    .leftJoin('qnaLike.qna', 'qna')
+    .where('qnaLike.userIdx = :userIdx', { userIdx })
+    .andWhere('qna.userIdx NOT IN (:...blockedUsers)', { blockedUsers })
+    .andWhere('qnaLikeIdx < :nextCursor', { nextCursor })
+    .orderBy('qnaLikeIdx', 'DESC')
+    .getOne();
+
+  return nextLikedQna ? String(nextCursor) : null;
+};
+
 export default {
   getMyPage,
   getLikedTips,
   getLikedTipsMetaData,
   getMyTips,
   getMyTipsMetaData,
-  updateProfile
+  updateProfile,
+  getLikedStory,
+  getLikedStoryMetaData,
+  getLikedQna,
+  getLikedQnaMetaData
 };

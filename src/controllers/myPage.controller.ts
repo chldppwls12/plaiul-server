@@ -1,3 +1,4 @@
+import { communityType } from '@utils/constants';
 import { Request, Response } from 'express';
 import { CustomError, ErrorType } from '@utils/error';
 import httpStatusCode from '@utils/httpStatusCode';
@@ -112,4 +113,41 @@ const updateProfile = async (req: Request, res: Response) => {
   }
 };
 
-export default { getMyPage, getLikedTips, getMyTips, updateProfile };
+/**
+ *
+ * @route GET /api/my-page/liked/community
+ * @desc 좋아요한 게시글 조회
+ * @access private
+ */
+const getLikedCommunity = async (req: Request, res: Response) => {
+  const userIdx = req.userIdx as number;
+  const { type } = req.query;
+  const cursor = req.query?.cursor as string;
+
+  try {
+    let result;
+    let meta: any;
+    if (type === communityType.STORY) {
+      result = await myPageService.getLikedStory(userIdx, cursor);
+      meta = await myPageService.getLikedStoryMetaData(userIdx, cursor);
+    } else if (type === communityType.QNA) {
+      result = await myPageService.getLikedQna(userIdx, cursor);
+      meta = await myPageService.getLikedQnaMetaData(userIdx, cursor);
+    }
+
+    return res.status(httpStatusCode.OK).json(successResWithMeta(result, meta));
+  } catch (err: any) {
+    console.log(err);
+    if (err instanceof CustomError) {
+      return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+    } else {
+      return res
+        .status(httpStatusCode.INTERAL_SERVER_ERROR)
+        .json(
+          failRes(ErrorType.INTERAL_SERVER_ERROR.code, ErrorType.INTERAL_SERVER_ERROR.message, [])
+        );
+    }
+  }
+};
+
+export default { getMyPage, getLikedTips, getMyTips, updateProfile, getLikedCommunity };

@@ -10,7 +10,9 @@ const itemsPerPage = {
   GET_QNA_COMMENT: 6,
   GET_ALL_TIP: 5,
   GET_ALL_LIKE_TIP: 5,
-  GET_ALL_MY_TIP: 5
+  GET_ALL_MY_TIP: 5,
+  GET_ALL_LIKED_STORY: 5,
+  GET_ALL_LIKED_QNA: 5
 };
 
 const reportType = {
@@ -28,4 +30,9 @@ const tipContentType = {
   IMAGE: 1
 };
 
-export { sortTypes, itemsPerPage, reportType, tipContentType };
+const communityType = {
+  STORY: 'story',
+  QNA: 'qna'
+};
+
+export { sortTypes, itemsPerPage, reportType, tipContentType, communityType };
