@@ -64,4 +64,16 @@ router.get(
   myPageController.getLikedCommunity
 );
 
+router.get(
+  '/community',
+  [
+    header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
+    query('type').exists({ checkFalsy: true }).isIn([communityType.STORY, communityType.QNA]),
+    query('cursor').optional().isString()
+  ],
+  validator,
+  authJwt,
+  myPageController.getUserCommunity
+);
+
 export default router;

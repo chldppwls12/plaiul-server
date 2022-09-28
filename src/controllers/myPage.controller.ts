@@ -150,4 +150,48 @@ const getLikedCommunity = async (req: Request, res: Response) => {
   }
 };
 
-export default { getMyPage, getLikedTips, getMyTips, updateProfile, getLikedCommunity };
+/**
+ *
+ * @route GET /api/my-page/community
+ * @desc 내가 쓴 게시글 조회
+ * @access private
+ */
+const getUserCommunity = async (req: Request, res: Response) => {
+  const userIdx = req.userIdx as number;
+  const { type } = req.query;
+  const cursor = req.query?.cursor as string;
+
+  try {
+    let result: any;
+    let meta: any;
+    if (type === communityType.STORY) {
+      result = await myPageService.getUserStory(userIdx, cursor);
+      meta = await myPageService.getUserStoryMetaData(userIdx, cursor);
+    } else if (type === communityType.QNA) {
+      result = await myPageService.getUserQna(userIdx, cursor);
+      meta = await myPageService.getUserQnaMetaData(userIdx, cursor);
+    }
+
+    return res.status(httpStatusCode.OK).json(successResWithMeta(result, meta));
+  } catch (err: any) {
+    console.log(err);
+    if (err instanceof CustomError) {
+      return res.status(err.httpStatusCode).json(failRes(err.code, err.message, err.errors));
+    } else {
+      return res
+        .status(httpStatusCode.INTERAL_SERVER_ERROR)
+        .json(
+          failRes(ErrorType.INTERAL_SERVER_ERROR.code, ErrorType.INTERAL_SERVER_ERROR.message, [])
+        );
+    }
+  }
+};
+
+export default {
+  getMyPage,
+  getLikedTips,
+  getMyTips,
+  updateProfile,
+  getLikedCommunity,
+  getUserCommunity
+};

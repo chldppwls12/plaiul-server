@@ -12,7 +12,9 @@ const itemsPerPage = {
   GET_ALL_LIKE_TIP: 5,
   GET_ALL_MY_TIP: 5,
   GET_ALL_LIKED_STORY: 5,
-  GET_ALL_LIKED_QNA: 5
+  GET_ALL_LIKED_QNA: 5,
+  GET_ALL_USERS_STORY: 5,
+  GET_ALL_USERS_QNA: 5
 };
 
 const reportType = {
