@@ -113,6 +113,8 @@ const getTip = async (userIdx: number, tipIdx: number) => {
     .where('tipIdx = :tipIdx', { tipIdx })
     .getRawOne();
 
+  tip.isWriter = tip.userIdx === userIdx ? true : false;
+
   tip.user = {
     userIdx: tip.userIdx,
     nickname: tip.nickname,
