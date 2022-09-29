@@ -28,5 +28,6 @@ const upload = (path: string) =>
 
 const storyUpload = upload('story');
 const tipUpload = upload('tip');
+const userUpload = upload('user');
 
-export { storyUpload, tipUpload };
+export { storyUpload, tipUpload, userUpload };

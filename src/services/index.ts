@@ -3,5 +3,6 @@ import storyService from '@services/story.service';
 import userService from '@services/user.service';
 import qnaService from '@services/qna.service';
 import tipService from '@services/tip.service';
+import myPageService from '@services/myPage.service';
 
-export { authService, storyService, userService, qnaService, tipService };
+export { authService, storyService, userService, qnaService, tipService, myPageService };

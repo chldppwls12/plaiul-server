@@ -568,6 +568,13 @@ const deletestory = async (storyIdx: number) => {
         .from(Story)
         .where('storyIdx = :storyIdx', { storyIdx })
         .execute();
+
+      await transactionalEntityManager
+        .createQueryBuilder()
+        .delete()
+        .from(StoryLike)
+        .where('storyIdx = :storyIdx', { storyIdx })
+        .execute();
     });
   } catch (err: any) {
     throw new CustomError(
