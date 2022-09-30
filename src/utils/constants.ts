@@ -6,7 +6,8 @@ const sortTypes = {
 const itemsPerPage = {
   GET_ALL_STORY: 5,
   GET_STORY_COMMENT: 5,
-  GET_ALL_QNA: 5
+  GET_ALL_QNA: 5,
+  GET_ALL_TIP_BY_USER: 5
 };
 
 const reportType = {
