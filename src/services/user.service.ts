@@ -78,18 +78,13 @@ const blockUser = async (userIdx: number, blockedUserIdx: number) => {
 
 const getUserInfo = async (checkUserdx: number) => {
   const user = await User.createQueryBuilder('user')
-    .select([
-      'user.nickname AS nickname',
-      'user.profile AS profile',
-      'user.introduction AS introduction'
-    ])
+    .select(['user.nickname AS nickname', 'user.profile AS profile'])
     .where('userIdx = :userIdx', { userIdx: checkUserdx })
     .getRawOne();
 
   return {
     nickname: user.nickname,
-    profile: user.profile ? user.profile : null,
-    introduction: user.introduction ? user.introduction : null
+    profile: user.profile ? user.profile : null
   };
 };
 
