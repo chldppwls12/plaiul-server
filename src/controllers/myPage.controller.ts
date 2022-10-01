@@ -205,9 +205,8 @@ const getUserCommunityComment = async (req: Request, res: Response) => {
       result = await myPageService.getUserCommentByStory(userIdx, cursor);
       meta = await myPageService.getUserCommentByStoryMetaData(userIdx, cursor);
     } else if (type === communityType.QNA) {
-      //TODO
-      // result = await myPageService.getUserCommentByQna(userIdx, cursor);
-      // meta = await myPageService.getUserCommentByQnaMetaData(userIdx, cursor);
+      result = await myPageService.getUserCommentByQna(userIdx, cursor);
+      meta = await myPageService.getUserCommentByQnaMetaData(userIdx, cursor);
     }
 
     return res.status(httpStatusCode.OK).json(successResWithMeta(result, meta));
