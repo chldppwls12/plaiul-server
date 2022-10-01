@@ -4,6 +4,7 @@ import userController from '@controllers/user.controller';
 import qnaController from '@controllers/qna.controller';
 import tipController from '@controllers/tip.controller';
 import myPageController from '@controllers/myPage.controller';
+import homeController from '@controllers/home.controller';
 
 export {
   authController,
@@ -11,5 +12,6 @@ export {
   userController,
   qnaController,
   tipController,
-  myPageController
+  myPageController,
+  homeController
 };

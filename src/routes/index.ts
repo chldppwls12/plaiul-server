@@ -5,6 +5,7 @@ import userRouter from '@routes/user.route';
 import qnaRouter from '@routes/qna.route';
 import tipRouter from '@routes/tip.route';
 import myPageRouter from '@routes/myPage.route';
+import homeRouter from '@routes/home.route';
 
 const router = Router();
 
@@ -14,5 +15,6 @@ router.use('/users', userRouter);
 router.use('/qna', qnaRouter);
 router.use('/tips', tipRouter);
 router.use('/my-page', myPageRouter);
+router.use('/home', homeRouter);
 
 export default router;
