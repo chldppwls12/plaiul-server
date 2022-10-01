@@ -1,6 +1,7 @@
+import { sortTypes } from '@utils/constants';
 import { Router } from 'express';
 import { authJwt } from '@middlewares/token';
-import { body, header } from 'express-validator';
+import { body, header, query } from 'express-validator';
 import validator from '@middlewares/validator';
 import { userController } from '@controllers/index';
 import { isValidJwt } from '@middlewares/token';
@@ -16,6 +17,26 @@ router.post(
   validator,
   authJwt,
   userController.blockUser
+);
+
+router.get(
+  '/:userIdx/tips',
+  [
+    header('authorization').optional().custom(isValidJwt),
+    query('sort').exists({ checkFalsy: true }).isIn([sortTypes.RECENTLY, sortTypes.POPULAR]),
+    query('cursor').optional().isString()
+  ],
+  validator,
+  authJwt,
+  userController.getTipsByUser
+);
+
+router.get(
+  '/:userIdx',
+  [header('authorization').optional().custom(isValidJwt)],
+  validator,
+  authJwt,
+  userController.getUserInfo
 );
 
 export default router;
