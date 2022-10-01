@@ -733,6 +733,312 @@ const getUserQnaNextCursor = async (userIdx: number, cursor: string | undefined)
   return nextUserQnas ? String(nextCursor) : null;
 };
 
+/**
+ *
+ * @param userIdx
+ * @param cursor
+ * @desc 댓글 단 story 조회
+ */
+const getUserCommentByStory = async (userIdx: number, cursor: string | undefined) => {
+  let query = StoryComment.createQueryBuilder('storyComment')
+    .select([
+      'MAX(storyComment.storyCommentIdx) AS storyCommentIdx',
+      'storyComment.storyIdx AS storyIdx',
+      'story.title AS title',
+      'CONVERT_TZ(story.createdAt, "UTC", "Asia/Seoul") AS createdAt',
+      'story.content AS content',
+      'user.userIdx AS userIdx',
+      'user.nickname AS nickname'
+    ])
+    .leftJoin('storyComment.story', 'story')
+    .leftJoin('story.user', 'user')
+    .leftJoin(
+      qb =>
+        qb
+          .select(['storyIdx AS storyIdx', 'COUNT(*) AS likeCnt'])
+          .from(StoryLike, 'storyLike')
+          .groupBy('storyLike.storyIdx'),
+      'getLikeCnt',
+      'getLikeCnt.storyIdx = storyComment.storyIdx'
+    )
+    .addSelect('IFNULL(getLikeCnt.likeCnt, 0) AS likeCnt')
+    .where('storyComment.userIdx = :userIdx', {
+      userIdx
+    })
+    .leftJoin(
+      qb =>
+        qb
+          .select(['sc.storyIdx AS storyIdx', 'COUNT(*) AS commentCnt'])
+          .from(StoryComment, 'sc')
+          .groupBy('sc.storyIdx'),
+      'getCommentCnt',
+      'getCommentCnt.storyIdx = story.storyIdx'
+    )
+    .addSelect('IFNULL(getCommentCnt.commentCnt, 0) AS commentCnt')
+    .groupBy('storyComment.storyIdx')
+    .limit(itemsPerPage.GET_ALL_USERS_STORY_COMMENT)
+    .orderBy('MAX(storyComment.storyCommentIdx)', 'DESC');
+
+  if (cursor) {
+    query = query.having('storyCommentIdx < :cursor', { cursor });
+  }
+
+  const stories = await query.getRawMany();
+
+  let result: any = [];
+  for (let story of stories) {
+    const { storyIdx } = story;
+    const isLiked = await StoryLike.createQueryBuilder()
+      .select()
+      .where('userIdx = :userIdx', { userIdx })
+      .andWhere('storyIdx = :storyIdx', { storyIdx })
+      .getOne();
+
+    const getThumbnail = await StoryImage.createQueryBuilder('storyImage')
+      .select(['storyImage.url'])
+      .where('storyImage.storyIdx = :storyIdx', { storyIdx })
+      .getOne();
+
+    result.push({
+      storyIdx,
+      title: story.title,
+      thumbnail: getThumbnail?.url,
+      createdAt: story.createdAt,
+      content: story.content,
+      isLiked: isLiked ? true : false,
+      likeCnt: story.likeCnt,
+      commentCnt: story.commentCnt,
+      user: {
+        userIdx: story.userIdx,
+        nickname: story.nickname
+      }
+    });
+  }
+  return result;
+};
+
+/**
+ *
+ * @param userIdx
+ * @param cursor
+ * @desc 댓글 단 story medat data 조회
+ */
+const getUserCommentByStoryMetaData = async (userIdx: number, cursor: string | undefined) => {
+  const nextCursor = await getUserCommentByStoryNextCursor(userIdx, cursor);
+
+  return {
+    nextCursor
+  };
+};
+
+const getUserCommentByStoryNextCursor = async (userIdx: number, cursor: string | undefined) => {
+  let query = StoryComment.createQueryBuilder('storyComment')
+    .select([
+      'MAX(storyComment.storyCommentIdx) AS storyCommentIdx',
+      'storyComment.storyIdx AS storyIdx',
+      'story.title AS title',
+      'CONVERT_TZ(story.createdAt, "UTC", "Asia/Seoul") AS createdAt',
+      'story.content AS content',
+      'user.userIdx AS userIdx',
+      'user.nickname AS nickname'
+    ])
+    .leftJoin('storyComment.story', 'story')
+    .leftJoin('story.user', 'user')
+    .leftJoin(
+      qb =>
+        qb
+          .select(['storyIdx AS storyIdx', 'COUNT(*) AS likeCnt'])
+          .from(StoryLike, 'storyLike')
+          .groupBy('storyLike.storyIdx'),
+      'getLikeCnt',
+      'getLikeCnt.storyIdx = storyComment.storyIdx'
+    )
+    .addSelect('IFNULL(getLikeCnt.likeCnt, 0) AS likeCnt')
+    .where('storyComment.userIdx = :userIdx', {
+      userIdx
+    })
+    .leftJoin(
+      qb =>
+        qb
+          .select(['sc.storyIdx AS storyIdx', 'COUNT(*) AS commentCnt'])
+          .from(StoryComment, 'sc')
+          .groupBy('sc.storyIdx'),
+      'getCommentCnt',
+      'getCommentCnt.storyIdx = story.storyIdx'
+    )
+    .addSelect('IFNULL(getCommentCnt.commentCnt, 0) AS commentCnt')
+    .groupBy('storyComment.storyIdx')
+    .limit(itemsPerPage.GET_ALL_USERS_STORY_COMMENT)
+    .orderBy('MAX(storyComment.storyCommentIdx)', 'DESC');
+
+  if (cursor) {
+    query = query.having('storyCommentIdx < :cursor', { cursor });
+  }
+
+  const curPageUsersCommentByStory = await query.getRawMany();
+  const nextCursor =
+    curPageUsersCommentByStory[curPageUsersCommentByStory.length - 1]?.storyCommentIdx;
+  if (!nextCursor) return null;
+
+  const nextPageUsersCommentByStory = await StoryComment.createQueryBuilder()
+    .select(['MAX(storyCommentIdx) AS storyCommentIdx'])
+    .where('userIdx = :userIdx', {
+      userIdx
+    })
+    .groupBy('storyIdx')
+    .having('storyCommentIdx < :nextCursor', { nextCursor })
+    .getRawOne();
+
+  return nextPageUsersCommentByStory ? String(nextCursor) : null;
+};
+
+/**
+ *
+ * @param userIdx
+ * @param cursor
+ * @desc 댓글 단 qna 조회
+ */
+const getUserCommentByQna = async (userIdx: number, cursor: string | undefined) => {
+  let query = QnaComment.createQueryBuilder('qnaComment')
+    .select([
+      'MAX(qnaComment.qnaCommentIdx) AS qnaCommentIdx',
+      'qna.qnaIdx AS qnaIdx',
+      'qna.title AS title',
+      'qna.content AS content',
+      'CONVERT_TZ(qna.createdAt, "UTC", "Asia/Seoul") AS createdAt',
+      'user.userIdx AS userIdx',
+      'user.nickname AS nickname'
+    ])
+    .leftJoin('qnaComment.qna', 'qna')
+    .leftJoin('qna.user', 'user')
+    .leftJoin(
+      qb =>
+        qb
+          .select(['ql.qnaIdx AS qnaIdx', 'COUNT(*) AS likeCnt'])
+          .from(QnaLike, 'ql')
+          .groupBy('ql.qnaIdx'),
+      'getLikeCnt',
+      'getLikeCnt.qnaIdx = qnaComment.qnaIdx'
+    )
+    .leftJoin(
+      qb =>
+        qb
+          .select(['qc.qnaIdx AS qnaIdx', 'COUNT(*) AS commentCnt'])
+          .from(QnaComment, 'qc')
+          .groupBy('qc.qnaIdx'),
+      'getCommentCnt',
+      'getCommentCnt.qnaIdx = qnaComment.qnaIdx'
+    )
+    .addSelect('IFNULL(likeCnt, 0)', 'likeCnt')
+    .addSelect('IFNULL(commentCnt, 0)', 'commentCnt')
+    .where('qnaComment.userIdx = :userIdx', { userIdx })
+    .groupBy('qnaComment.qnaIdx')
+    .orderBy('MAX(qnaComment.qnaCommentIdx)', 'DESC')
+    .limit(itemsPerPage.GET_ALL_USERS_QNA_COMMENT);
+
+  if (cursor) {
+    query = query.having('qnaCommentIdx < :cursor', { cursor });
+  }
+
+  const qnas = await query.getRawMany();
+
+  let result: any = [];
+  for (let qna of qnas) {
+    const { qnaIdx } = qna;
+    const isLiked = await QnaLike.createQueryBuilder()
+      .where('userIdx = :userIdx', { userIdx })
+      .andWhere('qnaIdx = :qnaIdx', { qnaIdx })
+      .getOne();
+
+    result.push({
+      qnaIdx,
+      title: qna.title,
+      content: qna.content,
+      isLiked: isLiked ? true : false,
+      likeCnt: qna.likeCnt,
+      commentCnt: qna.commentCnt,
+      createdAt: qna.createdAt,
+      user: {
+        userIdx: qna.userIdx,
+        nickname: qna.nickname
+      }
+    });
+  }
+
+  return result;
+};
+
+/**
+ *
+ * @param userIdx
+ * @param cursor
+ * @desc 댓글 단 qna meta data 조회
+ */
+const getUserCommentByQnaMetaData = async (userIdx: number, cursor: string | undefined) => {
+  const nextCursor = await getUserCommentByQnaNextCursor(userIdx, cursor);
+
+  return {
+    nextCursor
+  };
+};
+
+const getUserCommentByQnaNextCursor = async (userIdx: number, cursor: string | undefined) => {
+  let query = QnaComment.createQueryBuilder('qnaComment')
+    .select([
+      'MAX(qnaComment.qnaCommentIdx) AS qnaCommentIdx',
+      'qna.title AS title',
+      'qna.content AS content',
+      'CONVERT_TZ(qna.createdAt, "UTC", "Asia/Seoul") AS createdAt',
+      'user.userIdx AS userIdx',
+      'user.nickname AS nickname'
+    ])
+    .leftJoin('qnaComment.qna', 'qna')
+    .leftJoin('qna.user', 'user')
+    .leftJoin(
+      qb =>
+        qb
+          .select(['ql.qnaIdx AS qnaIdx', 'COUNT(*) AS likeCnt'])
+          .from(QnaLike, 'ql')
+          .groupBy('ql.qnaIdx'),
+      'getLikeCnt',
+      'getLikeCnt.qnaIdx = qnaComment.qnaIdx'
+    )
+    .leftJoin(
+      qb =>
+        qb
+          .select(['qc.qnaIdx AS qnaIdx', 'COUNT(*) AS commentCnt'])
+          .from(QnaComment, 'qc')
+          .groupBy('qc.qnaIdx'),
+      'getCommentCnt',
+      'getCommentCnt.qnaIdx = qnaComment.qnaIdx'
+    )
+    .addSelect('IFNULL(likeCnt, 0)', 'likeCnt')
+    .addSelect('IFNULL(commentCnt, 0)', 'commentCnt')
+    .where('qnaComment.userIdx = :userIdx', { userIdx })
+    .groupBy('qnaComment.qnaIdx')
+    .orderBy('MAX(qnaComment.qnaCommentIdx)', 'DESC')
+    .limit(itemsPerPage.GET_ALL_USERS_QNA_COMMENT);
+
+  if (cursor) {
+    query = query.having('qnaCommentIdx < :cursor', { cursor });
+  }
+
+  const curPageUsersCommentByQna = await query.getRawMany();
+  const nextCursor = curPageUsersCommentByQna[curPageUsersCommentByQna.length - 1]?.qnaCommentIdx;
+  if (!nextCursor) return null;
+
+  const nextPageUsersCommentByQna = await QnaComment.createQueryBuilder()
+    .select(['MAX(qnaCommentIdx) AS qnaCommentIdx'])
+    .where('userIdx = :userIdx', {
+      userIdx
+    })
+    .groupBy('qnaIdx')
+    .having('qnaCommentIdx < :nextCursor', { nextCursor })
+    .getRawOne();
+
+  return nextPageUsersCommentByQna ? String(nextCursor) : null;
+};
+
 export default {
   getMyPage,
   getLikedTips,
@@ -747,5 +1053,9 @@ export default {
   getUserStory,
   getUserStoryMetaData,
   getUserQna,
-  getUserQnaMetaData
+  getUserQnaMetaData,
+  getUserCommentByStory,
+  getUserCommentByStoryMetaData,
+  getUserCommentByQna,
+  getUserCommentByQnaMetaData
 };

@@ -65,6 +65,18 @@ router.get(
 );
 
 router.get(
+  '/community/comments',
+  [
+    header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
+    query('type').exists({ checkFalsy: true }).isIn([communityType.STORY, communityType.QNA]),
+    query('cursor').optional().isString()
+  ],
+  validator,
+  authJwt,
+  myPageController.getUserCommunityComment
+);
+
+router.get(
   '/community',
   [
     header('authorization').exists({ checkFalsy: true }).custom(isValidJwt),
