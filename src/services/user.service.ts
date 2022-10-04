@@ -107,6 +107,7 @@ const getTipsByUser = async (
     .select([
       'tip.tipIdx AS tipIdx',
       'tip.title AS title',
+      'tip.thumbnail AS thumbnail',
       'CONVERT_TZ(tip.createdAt, "UTC", "Asia/Seoul") AS createdAt',
       'user.userIdx AS userIdx',
       'user.nickname AS nickname'
@@ -161,6 +162,7 @@ const getTipsByUser = async (
     result.push({
       tipIdx,
       title: tip.title,
+      thumbnail: tip.thumbnail,
       createdAt: tip.createdAt,
       isLiked: isLiked ? true : false,
       likeCnt: tip.likeCnt,
