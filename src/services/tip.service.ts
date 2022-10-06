@@ -104,7 +104,7 @@ const getTip = async (userIdx: number, tipIdx: number) => {
       'tip.tipIdx AS tipIdx',
       'tip.title AS title',
       'tip.thumbnail AS thumbnail',
-      'tip.createdAt AS createdAt',
+      'CONVERT_TZ(tip.createdAt, "UTC", "Asia/Seoul") AS createdAt',
       'user.userIdx AS userIdx',
       'user.nickname AS nickname',
       'user.profile AS profile'

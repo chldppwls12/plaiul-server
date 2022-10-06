@@ -40,7 +40,7 @@ const getLikedTips = async (userIdx: number, cursor: string | undefined) => {
       'tipLike.tipIdx AS tipIdx',
       'tip.title AS title',
       'tip.thumbnail AS thumbnail',
-      'tip.createdAt AS createdAt',
+      'CONVERT_TZ(tip.createdAt, "UTC", "Asia/Seoul") AS createdAt',
       'user.userIdx AS userIdx',
       'user.nickname AS nickname'
     ])
@@ -131,7 +131,7 @@ const getMyTips = async (userIdx: number, cursor: string | undefined) => {
       'tip.tipIdx AS tipIdx',
       'tip.title AS title',
       'tip.thumbnail AS thumbnail',
-      'tip.createdAt AS createdAt',
+      'CONVERT_TZ(tip.createdAt, "UTC", "Asia/Seoul") AS createdAt',
       'user.userIdx AS userIdx',
       'user.nickname AS nickname'
     ])

@@ -32,7 +32,7 @@ const getQnas = async (
     .select([
       'qna.qnaIdx AS qnaIdx',
       'qna.title AS title',
-      'qna.createdAt AS createdAt',
+      'CONVERT_TZ(qna.createdAt, "UTC", "Asia/Seoul") AS createdAt',
       'user.userIdx AS userIdx',
       'user.nickname AS nickname'
     ])
@@ -306,7 +306,7 @@ const getQna = async (userIdx: number | undefined, qnaIdx: number) => {
       'qna.qnaIdx AS qnaIdx',
       'qna.title AS title',
       'qna.content AS content',
-      'qna.createdAt AS createdAt',
+      'CONVERT_TZ(qna.createdAt, "UTC", "Asia/Seoul") AS createdAt',
       'user.userIdx AS userIdx',
       'user.nickname AS nickname',
       'IF(user.profile != "", user.profile, NULL) AS profile'
@@ -760,7 +760,7 @@ const getQnaComments = async (
     .select([
       'qnaComment.qnaCommentIdx AS commentIdx',
       'qnaComment.comment AS content',
-      'qnaComment.createdAt AS createdAt',
+      'CONVERT_TZ(qnaComment.createdAt, "UTC", "Asia/Seoul") AS createdAt',
       'user.userIdx AS userIdx',
       'user.nickname AS nickname',
       'user.profile AS profile',
@@ -799,7 +799,7 @@ const getQnaComments = async (
       .select([
         'qnaRecomment.qnaCommentIdx AS commentIdx',
         'qnaRecomment.comment AS content',
-        'qnaRecomment.createdAt AS createdAt',
+        'CONVERT_TZ(qnaRecomment.createdAt, "UTC", "Asia/Seoul") AS createdAt',
         'user.userIdx AS userIdx',
         'user.nickname AS nickname',
         'user.profile AS profile'

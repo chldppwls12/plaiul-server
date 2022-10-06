@@ -1004,7 +1004,7 @@ const getStoryComments = async (
       .select([
         'storyComment.storyCommentIdx AS commentIdx',
         'storyComment.comment AS content',
-        'storyComment.createdAt AS createdAt',
+        'CONVERT_TZ(storyComment.createdAt, "UTC", "Asia/Seoul") AS createdAt',
         'user.userIdx AS userIdx',
         'user.nickname AS nickname',
         'user.profile AS profile',
@@ -1047,7 +1047,7 @@ const getStoryComments = async (
         .select([
           'storyRecomment.storyCommentIdx AS commentIdx',
           'storyRecomment.comment AS content',
-          'storyRecomment.createdAt AS createdAt',
+          'CONVERT_TZ(storyRecomment.createdAt, "UTC", "Asia/Seoul") AS createdAt',
           'user.userIdx AS userIdx',
           'user.nickname AS nickname',
           'user.profile AS profile'
