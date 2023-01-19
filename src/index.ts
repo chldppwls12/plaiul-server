@@ -3,6 +3,7 @@ import express from 'express';
 import AppDataSource from './config/data-source';
 import 'dotenv/config';
 import routes from '@routes/index';
+import redisClient from '@config/redis';
 
 const app = express();
 
@@ -10,6 +11,8 @@ AppDataSource.initialize()
   .then(async () => {
     app.use(express.urlencoded({ extended: true }));
     app.use(express.json());
+
+    await redisClient.connect();
 
     app.use('/api', routes);
     app

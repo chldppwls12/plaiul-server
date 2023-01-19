@@ -1,11 +1,17 @@
-const successRes = (message: string, data: object | []) => {
+const successRes = (data: object | object[]) => {
   return {
-    message,
     data
   };
 };
 
-const failRes = (code: number, message: string, errors: []) => {
+const successResWithMeta = (data: object | object[], meta: object) => {
+  return {
+    data,
+    meta
+  };
+};
+
+const failRes = (code: number, message: string, errors: any[]) => {
   return {
     code,
     message,
@@ -13,7 +19,4 @@ const failRes = (code: number, message: string, errors: []) => {
   };
 };
 
-export default {
-  successRes,
-  failRes
-};
+export { successRes, successResWithMeta, failRes };
